@@ -261,7 +261,7 @@ def train_seg(args):
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=args.batch_size,
                                                shuffle=True,
-                                               num_workers=0,
+                                               num_workers=8,
                                                pin_memory=True)
 
     val_dataset = SegList('val', transforms.Compose([transforms.RandomCrop(args.crop_size),
