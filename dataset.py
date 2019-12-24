@@ -38,8 +38,8 @@ def load_dataset_info(data_dir, data_name='new_data'):
     if not exists(info_path):
         return None
     info = json.load(open(info_path, 'r'))
-    assert 'mean' in info and 'std' in info, \
-        'mean and std are required for a dataset'
+    assert 'mean' in info and 'std' in info, 'mean and std are required for a dataset'
+
     data = Dataset(name=data_name, classes=0,
                    mean=None,
                    std=None,

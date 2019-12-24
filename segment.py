@@ -1,10 +1,9 @@
 import argparse
-import json
 import logging
 import os
 import threading
 from os.path import exists, join, split, dirname
-
+import pdb
 import time
 
 import numpy as np
@@ -22,11 +21,6 @@ import dla_up
 import data_transforms as transforms
 import dataset
 
-try:
-    from modules import batchnormsync
-    HAS_BN_SYNC = True
-except ImportError:
-    HAS_BN_SYNC = False
 
 FORMAT = "[%(asctime)-15s %(filename)s:%(lineno)d %(funcName)s] %(message)s"
 logging.basicConfig(format=FORMAT)
@@ -74,19 +68,28 @@ class SegList(torch.utils.data.Dataset):
     def __getitem__(self, index):
         image = Image.open(join(self.data_dir, self.image_list[index]))
         data = [image]
+
         if self.label_list is not None:
             label_map = Image.open(join(self.data_dir, self.label_list[index]))
             if self.binary:
-                label_map = Image.fromarray(
-                    (np.array(label_map) > 0).astype(np.uint8))
+                label_map = Image.fromarray((np.array(label_map) > 0).astype(np.uint8))
             data.append(label_map)
+
+            # import cv2
+            # ss = cv2.imread(join(self.data_dir, self.label_list[index]))
+            # ss = cv2.resize(ss, (896, 896))
+            # cv2.imshow('aa', ss)
+            # cv2.waitKey()
+
         if self.bbox_list is not None:
             data.append(Image.open(join(self.data_dir, self.bbox_list[index])))
         data = list(self.transforms(*data))
+
         if self.out_name:
             if self.label_list is None:
                 data.append(data[0][0, :, :])
             data.append(self.image_list[index])
+
         if self.out_size:
             data.append(torch.from_numpy(np.array(image.size, dtype=int)))
         return tuple(data)
@@ -98,11 +101,14 @@ class SegList(torch.utils.data.Dataset):
         image_path = join(self.list_dir, self.phase + '_images.txt')
         label_path = join(self.list_dir, self.phase + '_labels.txt')
         bbox_path = join(self.list_dir, self.phase + '_bboxes.txt')
+
         assert exists(image_path)
         self.image_list = [line.strip() for line in open(image_path, 'r')]
+
         if exists(label_path):
             self.label_list = [line.strip() for line in open(label_path, 'r')]
             assert len(self.image_list) == len(self.label_list)
+
         if exists(bbox_path):
             self.bbox_list = [line.strip() for line in open(bbox_path, 'r')]
             assert len(self.image_list) == len(self.bbox_list)
@@ -165,7 +171,7 @@ def validate(val_loader, model, criterion, eval_score=None, print_freq=10):
                                torch.nn.modules.loss.MSELoss]:
             target = target.float()
         input = input.cuda()
-        target = target.cuda(async=True)
+        target = target.cuda(non_blocking=True)
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
 
@@ -188,8 +194,8 @@ def validate(val_loader, model, criterion, eval_score=None, print_freq=10):
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Score {score.val:.3f} ({score.avg:.3f})'.format(
-                    i, len(val_loader), batch_time=batch_time, loss=losses,
-                    score=score), flush=True)
+                i, len(val_loader), batch_time=batch_time, loss=losses,
+                score=score), flush=True)
 
     print(' * Score {top1.avg:.3f}'.format(top1=score))
 
@@ -225,11 +231,10 @@ def accuracy(output, target):
     correct = correct[target != 255]
     correct = correct.view(-1)
     score = correct.float().sum(0).mul(100.0 / correct.size(0))
-    return score.data[0]
+    return score.item()
 
 
-def train(train_loader, model, criterion, optimizer, epoch,
-          eval_score=None, print_freq=10):
+def train(train_loader, model, criterion, optimizer, epoch, eval_score=None, print_freq=10):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -246,12 +251,11 @@ def train(train_loader, model, criterion, optimizer, epoch,
 
         # pdb.set_trace()
 
-        if type(criterion) in [torch.nn.modules.loss.L1Loss,
-                               torch.nn.modules.loss.MSELoss]:
+        if type(criterion) in [torch.nn.modules.loss.L1Loss, torch.nn.modules.loss.MSELoss]:
             target = target.float()
 
         input = input.cuda()
-        target = target.cuda(async=True)
+        target = target.cuda(non_blocking=True)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
@@ -261,7 +265,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
 
         # measure accuracy and record loss
         # prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-        losses.update(loss.data[0], input.size(0))
+        losses.update(loss.item(), input.size(0))
         if eval_score is not None:
             scores.update(eval_score(output, target_var), input.size(0))
 
@@ -280,8 +284,8 @@ def train(train_loader, model, criterion, optimizer, epoch,
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Score {top1.val:.3f} ({top1.avg:.3f})'.format(
-                    epoch, i, len(train_loader), batch_time=batch_time,
-                    data_time=data_time, loss=losses, top1=scores))
+                epoch, i, len(train_loader), batch_time=batch_time,
+                data_time=data_time, loss=losses, top1=scores))
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
@@ -301,15 +305,14 @@ def train_seg(args):
         print(k, ':', v)
 
     pretrained_base = args.pretrained_base
-    single_model = dla_up.__dict__.get(args.arch)(
-        args.classes, pretrained_base, down_ratio=args.down)
+    single_model = dla_up.__dict__.get(args.arch)(args.classes, pretrained_base, down_ratio=args.down)
+
     model = torch.nn.DataParallel(single_model).cuda()
     if args.edge_weight > 0:
-        weight = torch.from_numpy(
-            np.array([1, args.edge_weight], dtype=np.float32))
-        criterion = nn.NLLLoss2d(ignore_index=255, weight=weight)
+        weight = torch.from_numpy(np.array([1, args.edge_weight], dtype=np.float32))
+        criterion = nn.NLLLoss(ignore_index=255, weight=weight)
     else:
-        criterion = nn.NLLLoss2d(ignore_index=255)
+        criterion = nn.NLLLoss(ignore_index=255)
 
     criterion.cuda()
 
@@ -327,12 +330,12 @@ def train_seg(args):
     t.extend([transforms.RandomHorizontalFlip(),
               transforms.ToTensor(),
               normalize])
-    train_loader = torch.utils.data.DataLoader(
-        SegList(data_dir, 'train', transforms.Compose(t),
-                binary=(args.classes == 2)),
-        batch_size=batch_size, shuffle=True, num_workers=num_workers,
-        pin_memory=True
-    )
+    train_loader = torch.utils.data.DataLoader(SegList(data_dir, 'train', transforms.Compose(t),
+                                                       binary=(args.classes == 2)),
+                                               batch_size=batch_size,
+                                               shuffle=True,
+                                               num_workers=0,
+                                               pin_memory=True)
     val_loader = torch.utils.data.DataLoader(
         SegList(data_dir, 'val', transforms.Compose([
             transforms.RandomCrop(crop_size),
@@ -341,8 +344,8 @@ def train_seg(args):
             normalize,
         ]), binary=(args.classes == 2)),
         batch_size=batch_size, shuffle=False, num_workers=num_workers,
-        pin_memory=True
-    )
+        pin_memory=True)
+
     optimizer = torch.optim.SGD(single_model.optim_parameters(),
                                 args.lr,
                                 momentum=args.momentum,
@@ -372,8 +375,7 @@ def train_seg(args):
         lr = adjust_learning_rate(args, optimizer, epoch)
         print('Epoch: [{0}]\tlr {1:.06f}'.format(epoch, lr))
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch,
-              eval_score=accuracy)
+        train(train_loader, model, criterion, optimizer, epoch, eval_score=accuracy)
 
         # evaluate on validation set
         prec1 = validate(val_loader, model, criterion, eval_score=accuracy)
@@ -469,8 +471,7 @@ def save_colorful_images(predictions, filenames, output_dir, palettes):
         im.save(fn)
 
 
-def test(eval_data_loader, model, num_classes,
-         output_dir='pred', has_gt=True, save_vis=False):
+def test(eval_data_loader, model, num_classes, output_dir='pred', has_gt=True, save_vis=False):
     model.eval()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -535,8 +536,7 @@ def resize_4d_tensor(tensor, width, height):
     return out
 
 
-def test_ms(eval_data_loader, model, num_classes, scales,
-            output_dir='pred', has_gt=True, save_vis=False):
+def test_ms(eval_data_loader, model, num_classes, scales, output_dir='pred', has_gt=True, save_vis=False):
     model.eval()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -590,8 +590,7 @@ def test_seg(args):
     for k, v in args.__dict__.items():
         print(k, ':', v)
 
-    single_model = dla_up.__dict__.get(args.arch)(
-        args.classes, down_ratio=args.down)
+    single_model = dla_up.__dict__.get(args.arch)(args.classes, down_ratio=args.down)
 
     model = torch.nn.DataParallel(single_model).cuda()
 
@@ -652,8 +651,7 @@ def test_seg(args):
 
 def parse_args():
     # Training settings
-    parser = argparse.ArgumentParser(
-        description='DLA Segmentation and Boundary Prediction')
+    parser = argparse.ArgumentParser(description='DLA Segmentation')
     parser.add_argument('cmd', choices=['train', 'test'])
     parser.add_argument('-d', '--data-dir', default=None)
     parser.add_argument('-c', '--classes', default=0, type=int)
@@ -687,8 +685,7 @@ def parse_args():
                              'training status')
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='path to latest checkpoint (default: none)')
-    parser.add_argument('--pretrained-base', default=None,
-                        help='use pre-trained model')
+    parser.add_argument('--pretrained-base', default=None, help='use pre-trained model')
     parser.add_argument('-j', '--workers', type=int, default=8)
     parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
                         help='Downsampling ratio of IDA network output, which '
@@ -697,7 +694,6 @@ def parse_args():
     parser.add_argument('--load-release', dest='load_rel', default=None)
     parser.add_argument('--phase', default='val')
     parser.add_argument('--lr-mode', default='step')
-    parser.add_argument('--bn-sync', action='store_true', default=False)
     parser.add_argument('--random-scale', default=0, type=float)
     parser.add_argument('--random-rotate', default=0, type=int)
     parser.add_argument('--random-color', action='store_true', default=False)
@@ -720,12 +716,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    if args.bn_sync:
-        if HAS_BN_SYNC:
-            dla_up.set_bn(batchnormsync.BatchNormSync)
-        else:
-            print('batch normalization synchronization across GPUs '
-                  'is not imported.')
+
     if args.cmd == 'train':
         train_seg(args)
     elif args.cmd == 'test':
