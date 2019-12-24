@@ -1,10 +1,9 @@
 import math
 import numbers
-import pdb
 import random
 
 import numpy as np
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageEnhance
 import torch
 
 
@@ -352,23 +351,6 @@ class PadToSize(object):
         return (image, label, *args)
 
 
-class PadImage(object):
-    def __init__(self, padding, fill=0):
-        assert isinstance(padding, numbers.Number)
-        assert isinstance(fill, numbers.Number) or isinstance(fill, str) or \
-            isinstance(fill, tuple)
-        self.padding = padding
-        self.fill = fill
-
-    def __call__(self, image, label=None, *args):
-        if self.fill == -1:
-            image = pad_image_reflection(
-                image, self.padding, self.padding, self.padding, self.padding)
-        else:
-            image = ImageOps.expand(image, border=self.padding, fill=self.fill)
-        return (image, label, *args)
-
-
 class ToTensor(object):
     """Converts a PIL.Image or numpy.ndarray (H x W x C) in the range
     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range
@@ -381,8 +363,7 @@ class ToTensor(object):
             img = torch.from_numpy(pic)
         else:
             # handle PIL Image
-            img = torch.ByteTensor(
-                torch.ByteStorage.from_buffer(pic.tobytes()))
+            img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
             # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
             if pic.mode == 'YCbCr':
                 nchannel = 3

@@ -2,14 +2,14 @@ import argparse
 import logging
 import os
 import threading
-from os.path import exists, join, split, dirname
+from os.path import exists, join, split
 import pdb
 import time
 
 import numpy as np
 import shutil
 
-import sys
+import glob
 from PIL import Image
 import torch
 import torch.utils.data
@@ -19,70 +19,31 @@ from torch.autograd import Variable
 
 import dla_up
 import data_transforms as transforms
-import dataset
-
+import config as cfg
 
 FORMAT = "[%(asctime)-15s %(filename)s:%(lineno)d %(funcName)s] %(message)s"
 logging.basicConfig(format=FORMAT)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-CITYSCAPE_PALLETE = np.asarray([
-    [128, 64, 128],
-    [244, 35, 232],
-    [70, 70, 70],
-    [102, 102, 156],
-    [190, 153, 153],
-    [153, 153, 153],
-    [250, 170, 30],
-    [220, 220, 0],
-    [107, 142, 35],
-    [152, 251, 152],
-    [70, 130, 180],
-    [220, 20, 60],
-    [255, 0, 0],
-    [0, 0, 142],
-    [0, 0, 70],
-    [0, 60, 100],
-    [0, 80, 100],
-    [0, 0, 230],
-    [119, 11, 32],
-    [0, 0, 0]], dtype=np.uint8)
-
 
 class SegList(torch.utils.data.Dataset):
-    def __init__(self, data_dir, phase, transforms, list_dir=None,
-                 out_name=False, out_size=False, binary=False):
-        self.list_dir = data_dir if list_dir is None else list_dir
-        self.data_dir = data_dir
+    def __init__(self, phase, transforms, out_name=False, out_size=False):
         self.out_name = out_name
         self.phase = phase
         self.transforms = transforms
-        self.image_list = None
-        self.label_list = None
-        self.bbox_list = None
         self.out_size = out_size
-        self.binary = binary
-        self.read_lists()
+
+        self.original_imgs = glob.glob('/home/feiyu/Data/cityscapes_semantic/original_imgs/train/*.png')
+        self.original_imgs.sort()
+        self.label_imgs = glob.glob('/home/feiyu/Data/cityscapes_semantic/label_imgs/train/*.png')
+        self.label_imgs.sort()
 
     def __getitem__(self, index):
-        image = Image.open(join(self.data_dir, self.image_list[index]))
-        data = [image]
+        img = Image.open(self.original_imgs[index])
+        label = Image.open(self.label_imgs[index])
 
-        if self.label_list is not None:
-            label_map = Image.open(join(self.data_dir, self.label_list[index]))
-            if self.binary:
-                label_map = Image.fromarray((np.array(label_map) > 0).astype(np.uint8))
-            data.append(label_map)
-
-            # import cv2
-            # ss = cv2.imread(join(self.data_dir, self.label_list[index]))
-            # ss = cv2.resize(ss, (896, 896))
-            # cv2.imshow('aa', ss)
-            # cv2.waitKey()
-
-        if self.bbox_list is not None:
-            data.append(Image.open(join(self.data_dir, self.bbox_list[index])))
+        data = [img, label]
         data = list(self.transforms(*data))
 
         if self.out_name:
@@ -91,27 +52,12 @@ class SegList(torch.utils.data.Dataset):
             data.append(self.image_list[index])
 
         if self.out_size:
-            data.append(torch.from_numpy(np.array(image.size, dtype=int)))
+            data.append(torch.from_numpy(np.array(img.size, dtype=int)))
+
         return tuple(data)
 
     def __len__(self):
-        return len(self.image_list)
-
-    def read_lists(self):
-        image_path = join(self.list_dir, self.phase + '_images.txt')
-        label_path = join(self.list_dir, self.phase + '_labels.txt')
-        bbox_path = join(self.list_dir, self.phase + '_bboxes.txt')
-
-        assert exists(image_path)
-        self.image_list = [line.strip() for line in open(image_path, 'r')]
-
-        if exists(label_path):
-            self.label_list = [line.strip() for line in open(label_path, 'r')]
-            assert len(self.image_list) == len(self.label_list)
-
-        if exists(bbox_path):
-            self.bbox_list = [line.strip() for line in open(bbox_path, 'r')]
-            assert len(self.image_list) == len(self.bbox_list)
+        return len(self.original_imgs)
 
 
 class SegListMS(torch.utils.data.Dataset):
@@ -249,8 +195,6 @@ def train(train_loader, model, criterion, optimizer, epoch, eval_score=None, pri
         # measure data loading time
         data_time.update(time.time() - end)
 
-        # pdb.set_trace()
-
         if type(criterion) in [torch.nn.modules.loss.L1Loss, torch.nn.modules.loss.MSELoss]:
             target = target.float()
 
@@ -295,61 +239,45 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
 
 def train_seg(args):
-    batch_size = args.batch_size
-    num_workers = args.workers
-    crop_size = args.crop_size
-
-    print(' '.join(sys.argv))
-
-    for k, v in args.__dict__.items():
-        print(k, ':', v)
-
-    pretrained_base = args.pretrained_base
-    single_model = dla_up.__dict__.get(args.arch)(args.classes, pretrained_base, down_ratio=args.down)
-
+    single_model = dla_up.__dict__.get(args.arch)(args.classes, down_ratio=args.down)
     model = torch.nn.DataParallel(single_model).cuda()
-    if args.edge_weight > 0:
-        weight = torch.from_numpy(np.array([1, args.edge_weight], dtype=np.float32))
-        criterion = nn.NLLLoss(ignore_index=255, weight=weight)
-    else:
-        criterion = nn.NLLLoss(ignore_index=255)
 
-    criterion.cuda()
+    criterion = nn.NLLLoss(ignore_index=255).cuda()
 
-    data_dir = args.data_dir
-    info = dataset.load_dataset_info(data_dir)
-    normalize = transforms.Normalize(mean=info.mean, std=info.std)
+    normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
     t = []
     if args.random_rotate > 0:
         t.append(transforms.RandomRotate(args.random_rotate))
     if args.random_scale > 0:
         t.append(transforms.RandomScale(args.random_scale))
-    t.append(transforms.RandomCrop(crop_size))
+    t.append(transforms.RandomCrop(args.crop_size))
     if args.random_color:
         t.append(transforms.RandomJitter(0.4, 0.4, 0.4))
     t.extend([transforms.RandomHorizontalFlip(),
               transforms.ToTensor(),
               normalize])
-    train_loader = torch.utils.data.DataLoader(SegList(data_dir, 'train', transforms.Compose(t),
-                                                       binary=(args.classes == 2)),
-                                               batch_size=batch_size,
+
+    train_dataset = SegList('train', transforms.Compose(t))
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+                                               batch_size=args.batch_size,
                                                shuffle=True,
                                                num_workers=0,
                                                pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(
-        SegList(data_dir, 'val', transforms.Compose([
-            transforms.RandomCrop(crop_size),
-            # transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]), binary=(args.classes == 2)),
-        batch_size=batch_size, shuffle=False, num_workers=num_workers,
-        pin_memory=True)
+
+    val_dataset = SegList('val', transforms.Compose([transforms.RandomCrop(args.crop_size),
+                                                     transforms.ToTensor(),
+                                                     normalize]))
+
+    val_loader = torch.utils.data.DataLoader(val_dataset,
+                                             batch_size=args.batch_size,
+                                             shuffle=False,
+                                             num_workers=8,
+                                             pin_memory=True)
 
     optimizer = torch.optim.SGD(single_model.optim_parameters(),
                                 args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+                                momentum=0.9,
+                                weight_decay=0.0001)
     cudnn.benchmark = True
     best_prec1 = 0
     start_epoch = 0
@@ -374,7 +302,7 @@ def train_seg(args):
     for epoch in range(start_epoch, args.epochs):
         lr = adjust_learning_rate(args, optimizer, epoch)
         print('Epoch: [{0}]\tlr {1:.06f}'.format(epoch, lr))
-        # train for one epoch
+
         train(train_loader, model, criterion, optimizer, epoch, eval_score=accuracy)
 
         # evaluate on validation set
@@ -383,20 +311,18 @@ def train_seg(args):
         is_best = prec1 > best_prec1
         best_prec1 = max(prec1, best_prec1)
         checkpoint_path = 'checkpoint_latest.pth.tar'
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'arch': args.arch,
-            'state_dict': model.state_dict(),
-            'best_prec1': best_prec1,
-        }, is_best, filename=checkpoint_path)
+
+        save_checkpoint({'epoch': epoch + 1,
+                         'arch': args.arch,
+                         'state_dict': model.state_dict(),
+                         'best_prec1': best_prec1}, is_best, filename=checkpoint_path)
+
         if (epoch + 1) % args.save_freq == 0:
             history_path = 'checkpoint_{:03d}.pth.tar'.format(epoch + 1)
             shutil.copyfile(checkpoint_path, history_path)
 
 
 def adjust_learning_rate(args, optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10
-    every 30 epochs"""
     if args.lr_mode == 'step':
         lr = args.lr * (0.1 ** (epoch // args.step))
     elif args.lr_mode == 'poly':
@@ -411,8 +337,7 @@ def adjust_learning_rate(args, optimizer, epoch):
 
 def fast_hist(pred, label, n):
     k = (label >= 0) & (label < n)
-    return np.bincount(
-        n * label[k].astype(int) + pred[k], minlength=n ** 2).reshape(n, n)
+    return np.bincount(n * label[k].astype(int) + pred[k], minlength=n ** 2).reshape(n, n)
 
 
 def per_class_iu(hist):
@@ -490,8 +415,7 @@ def test(eval_data_loader, model, num_classes, output_dir='pred', has_gt=True, s
             if prob.size(1) == 2:
                 save_prob_images(prob, name, output_dir + '_prob', size)
             else:
-                save_colorful_images(pred, name, output_dir + '_color',
-                                     CITYSCAPE_PALLETE)
+                save_colorful_images(pred, name, output_dir + '_color', cfg.CITYSCAPE_PALLETE)
         if has_gt:
             label = label.numpy()
             hist += fast_hist(pred.flatten(), label.flatten(), num_classes)
@@ -516,19 +440,12 @@ def resize_4d_tensor(tensor, width, height):
     out_size = (tensor.size(0), tensor.size(1), height, width)
     out = np.empty(out_size, dtype=np.float32)
 
-    def resize_one(i, j):
-        out[i, j] = np.array(
-            Image.fromarray(tensor_cpu[i, j]).resize(
-                (width, height), Image.BILINEAR))
-
     def resize_channel(j):
         for i in range(tensor.size(0)):
             out[i, j] = np.array(
-                Image.fromarray(tensor_cpu[i, j]).resize(
-                    (width, height), Image.BILINEAR))
+                Image.fromarray(tensor_cpu[i, j]).resize((width, height), Image.BILINEAR))
 
-    workers = [threading.Thread(target=resize_channel, args=(j,))
-               for j in range(tensor.size(1))]
+    workers = [threading.Thread(target=resize_channel, args=(j,)) for j in range(tensor.size(1))]
     for w in workers:
         w.start()
     for w in workers:
@@ -563,8 +480,7 @@ def test_ms(eval_data_loader, model, num_classes, scales, output_dir='pred', has
         batch_time.update(time.time() - end)
         if save_vis:
             save_output_images(pred, name, output_dir)
-            save_colorful_images(pred, name, output_dir + '_color',
-                                 CITYSCAPE_PALLETE)
+            save_colorful_images(pred, name, output_dir + '_color', cfg.CITYSCAPE_PALLETE)
         if has_gt:
             label = label.numpy()
             hist += fast_hist(pred.flatten(), label.flatten(), num_classes)
@@ -574,8 +490,7 @@ def test_ms(eval_data_loader, model, num_classes, scales, output_dir='pred', has
         logger.info('Eval: [{0}/{1}]\t'
                     'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                     'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                    .format(iter, len(eval_data_loader), batch_time=batch_time,
-                            data_time=data_time))
+                    .format(iter, len(eval_data_loader), batch_time=batch_time, data_time=data_time))
     if has_gt:  # val
         ious = per_class_iu(hist) * 100
         logger.info(' '.join('{:.03f}'.format(i) for i in ious))
@@ -587,6 +502,7 @@ def test_seg(args):
     num_workers = args.workers
     phase = args.phase
 
+    pdb.set_trace()
     for k, v in args.__dict__.items():
         print(k, ':', v)
 
@@ -594,26 +510,22 @@ def test_seg(args):
 
     model = torch.nn.DataParallel(single_model).cuda()
 
-    data_dir = args.data_dir
-    info = dataset.load_dataset_info(data_dir)
-    normalize = transforms.Normalize(mean=info.mean, std=info.std)
-    # scales = [0.5, 0.75, 1.25, 1.5, 1.75]
+    normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
     scales = [0.5, 0.75, 1.25, 1.5]
     t = []
     if args.crop_size > 0:
         t.append(transforms.PadToSize(args.crop_size))
     t.extend([transforms.ToTensor(), normalize])
     if args.ms:
-        data = SegListMS(data_dir, phase, transforms.Compose(t), scales)
+        data = SegListMS(args.data_dir, phase, transforms.Compose(t), scales)
     else:
-        data = SegList(data_dir, phase, transforms.Compose(t),
-                       out_name=True, out_size=True,
-                       binary=args.classes == 2)
-    test_loader = torch.utils.data.DataLoader(
-        data,
-        batch_size=batch_size, shuffle=False, num_workers=num_workers,
-        pin_memory=False
-    )
+        data = SegList(args.data_dir, phase, transforms.Compose(t), out_name=True, out_size=True)
+
+    test_loader = torch.utils.data.DataLoader(data,
+                                              batch_size=batch_size,
+                                              shuffle=False,
+                                              num_workers=num_workers,
+                                              pin_memory=False)
 
     cudnn.benchmark = True
 
@@ -653,7 +565,6 @@ def parse_args():
     # Training settings
     parser = argparse.ArgumentParser(description='DLA Segmentation')
     parser.add_argument('cmd', choices=['train', 'test'])
-    parser.add_argument('-d', '--data-dir', default=None)
     parser.add_argument('-c', '--classes', default=0, type=int)
     parser.add_argument('-s', '--crop-size', default=0, type=int)
     parser.add_argument('--step', type=int, default=200)
@@ -669,24 +580,15 @@ def parse_args():
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
-    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
-                        help='SGD momentum (default: 0.9)')
-    parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
-                        metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('-e', '--evaluate', dest='evaluate',
                         action='store_true',
                         help='evaluate model on validation set')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='enables CUDA training')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='- seed (default: 1)')
+
+    parser.add_argument('--seed', type=int, default=1, metavar='S', help='- seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=1, metavar='N',
-                        help='how many batches to wait before logging '
-                             'training status')
+                        help='how many batches to wait before logging training status')
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='path to latest checkpoint (default: none)')
-    parser.add_argument('--pretrained-base', default=None, help='use pre-trained model')
-    parser.add_argument('-j', '--workers', type=int, default=8)
     parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
                         help='Downsampling ratio of IDA network output, which '
                              'is then upsampled to the original resolution '
@@ -699,29 +601,20 @@ def parse_args():
     parser.add_argument('--random-color', action='store_true', default=False)
     parser.add_argument('--save-freq', default=10, type=int)
     parser.add_argument('--ms', action='store_true', default=False)
-    parser.add_argument('--edge-weight', type=int, default=-1)
     parser.add_argument('--test-suffix', default='')
     parser.add_argument('--with-gt', action='store_true')
     args = parser.parse_args()
-    args.cuda = not args.no_cuda and torch.cuda.is_available()
 
-    assert args.data_dir is not None
-    assert args.classes > 0
-
-    print(' '.join(sys.argv))
-    print(args)
+    args.cuda = torch.cuda.is_available()
 
     return args
 
 
-def main():
-    args = parse_args()
+args = parse_args()
+for k, v in args.__dict__.items():
+    print(k, ':', v)
 
-    if args.cmd == 'train':
-        train_seg(args)
-    elif args.cmd == 'test':
-        test_seg(args)
-
-
-if __name__ == '__main__':
-    main()
+if args.cmd == 'train':
+    train_seg(args)
+elif args.cmd == 'test':
+    test_seg(args)

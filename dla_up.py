@@ -118,13 +118,12 @@ class DLAUp(nn.Module):
 
 
 class DLASeg(nn.Module):
-    def __init__(self, base_name, classes, pretrained_base=None, down_ratio=2):
+    def __init__(self, base_name, classes, down_ratio=2):
         super().__init__()
         assert down_ratio in [2, 4, 8, 16]
 
         self.first_level = int(np.log2(down_ratio))
-        self.base = dla.__dict__[base_name](pretrained=pretrained_base, return_levels=True)
-
+        self.base = dla.__dict__[base_name]()
         channels = self.base.channels
         scales = [2 ** i for i in range(len(channels[self.first_level:]))]
 
@@ -167,23 +166,23 @@ class DLASeg(nn.Module):
             yield param
 
 
-def dla34up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla34', classes, pretrained_base=pretrained_base, **kwargs)
+def dla34up(classes, **kwargs):
+    model = DLASeg('dla34', classes, **kwargs)
     return model
 
 
-def dla60up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla60', classes, pretrained_base=pretrained_base, **kwargs)
+def dla60up(classes, **kwargs):
+    model = DLASeg('dla60', classes, **kwargs)
     return model
 
 
-def dla102up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla102', classes, pretrained_base=pretrained_base, **kwargs)
+def dla102up(classes, **kwargs):
+    model = DLASeg('dla102', classes, **kwargs)
     return model
 
 
-def dla169up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla169', classes, pretrained_base=pretrained_base, **kwargs)
+def dla169up(classes, **kwargs):
+    model = DLASeg('dla169', classes, **kwargs)
     return model
 
 # import torch

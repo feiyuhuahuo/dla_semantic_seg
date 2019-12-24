@@ -1,7 +1,4 @@
 from collections import namedtuple
-import json
-from os.path import exists, join
-
 
 Dataset = namedtuple('Dataset', ['model_hash', 'classes', 'mean', 'std',
                                  'eigval', 'eigvec', 'name'])
@@ -25,25 +22,3 @@ imagenet = Dataset(name='imagenet',
                                'dla102x2': '262837b6',
                                'dla169': '0914e092'})
 
-
-def get_data(data_name):
-    try:
-        return globals()[data_name]
-    except KeyError:
-        return None
-
-
-def load_dataset_info(data_dir, data_name='new_data'):
-    info_path = join(data_dir, 'info.json')
-    if not exists(info_path):
-        return None
-    info = json.load(open(info_path, 'r'))
-    assert 'mean' in info and 'std' in info, 'mean and std are required for a dataset'
-
-    data = Dataset(name=data_name, classes=0,
-                   mean=None,
-                   std=None,
-                   eigval=None,
-                   eigvec=None,
-                   model_hash=dict())
-    return data._replace(**info)
