@@ -5,10 +5,8 @@ import torch
 import os
 import glob
 
-
-gg = glob.glob('weights/*')
-print(gg)
-
+aa = [1,23,4]
+print(mean(aa))
 # ss = nn.Softmax(dim=1)(input)
 # print(ss)
 # ll = torch.log(ss)
