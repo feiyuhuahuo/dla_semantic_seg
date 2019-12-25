@@ -73,7 +73,7 @@ class RandomResizedCrop(object):
     """
 
     def __init__(self, size, interpolation=Image.BILINEAR,
-                 min_area_ratio=0.08, aspect_ratio=4./3):
+                 min_area_ratio=0.08, aspect_ratio=4. / 3):
         self.size = (size, size)
         self.interpolation = interpolation
         self.min_area_ratio = min_area_ratio
@@ -176,7 +176,7 @@ class RandomScale(object):
         else:
             interpolation = Image.CUBIC
         return image.resize((tw, th), interpolation), \
-            label.resize((tw, th), Image.NEAREST)
+               label.resize((tw, th), Image.NEAREST)
 
 
 class RandomRotate(object):
@@ -193,7 +193,6 @@ class RandomRotate(object):
         assert label is None or image.size == label.size
 
         w, h = image.size
-        p = max((h, w))
         angle = random.randint(0, self.angle * 2) - self.angle
 
         if label is not None:
@@ -262,11 +261,11 @@ def pad_reflection(image, top, bottom, left, right):
     new_shape[0] += top + bottom
     new_shape[1] += left + right
     new_image = np.empty(new_shape, dtype=image.dtype)
-    new_image[top:top+h, left:left+w] = image
-    new_image[:top, left:left+w] = image[top:0:-1, :]
-    new_image[top+h:, left:left+w] = image[-1:-bottom-1:-1, :]
-    new_image[:, :left] = new_image[:, left*2:left:-1]
-    new_image[:, left+w:] = new_image[:, -right-1:-right*2-1:-1]
+    new_image[top:top + h, left:left + w] = image
+    new_image[:top, left:left + w] = image[top:0:-1, :]
+    new_image[top + h:, left:left + w] = image[-1:-bottom - 1:-1, :]
+    new_image[:, :left] = new_image[:, left * 2:left:-1]
+    new_image[:, left + w:] = new_image[:, -right - 1:-right * 2 - 1:-1]
     return pad_reflection(new_image, next_top, next_bottom,
                           next_left, next_right)
 
@@ -280,7 +279,7 @@ def pad_constant(image, top, bottom, left, right, value):
     new_shape[1] += left + right
     new_image = np.empty(new_shape, dtype=image.dtype)
     new_image.fill(value)
-    new_image[top:top+h, left:left+w] = image
+    new_image[top:top + h, left:left + w] = image
     return new_image
 
 
@@ -301,7 +300,7 @@ class Pad(object):
     def __init__(self, padding, fill=0):
         assert isinstance(padding, numbers.Number)
         assert isinstance(fill, numbers.Number) or isinstance(fill, str) or \
-            isinstance(fill, tuple)
+               isinstance(fill, tuple)
         self.padding = padding
         self.fill = fill
 
@@ -329,7 +328,7 @@ class PadToSize(object):
     def __init__(self, side, fill=-1):
         assert isinstance(side, numbers.Number)
         assert isinstance(fill, numbers.Number) or isinstance(fill, str) or \
-            isinstance(fill, tuple)
+               isinstance(fill, tuple)
         self.side = side
         self.fill = fill
 
@@ -378,38 +377,6 @@ class ToTensor(object):
             return (img,)
         else:
             return img, torch.LongTensor(np.array(label, dtype=np.int))
-
-
-class Compose(object):
-    """Composes several transforms together.
-    """
-
-    def __init__(self, transforms):
-        self.transforms = transforms
-
-    def __call__(self, *args):
-        for t in self.transforms:
-            args = t(*args)
-        return args
-
-
-class Lighting(object):
-    def __init__(self, alphastd, eigval, eigvec):
-        self.alphastd = alphastd
-        self.eigval = np.array(eigval)
-        self.eigvec = np.array(eigvec)
-
-    def __call__(self, image, *args):
-        if self.alphastd == 0:
-            return (image, *args)
-        alpha = np.random.randn(3) * self.alphastd
-        rgb = (self.eigvec @ np.diag(alpha * self.eigval)).sum(axis=1).\
-            round().astype(np.int32)
-        image = np.asarray(image)
-        image_type = image.dtype
-        image = Image.fromarray(
-            np.clip(image.astype(np.int32) + rgb, 0, 255).astype(image_type))
-        return (image, *args)
 
 
 class RandomBrightness(object):
@@ -482,3 +449,13 @@ class RandomJitter(object):
         for i in range(len(order)):
             image = self.jitter_funcs[order[i]](image)[0]
         return (image, *args)
+
+
+class Compose(object):
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, *args):
+        for t in self.transforms:
+            args = t(*args)
+        return args

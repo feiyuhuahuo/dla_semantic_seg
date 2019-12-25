@@ -37,11 +37,11 @@ def save_output_images(predictions, filenames, output_dir, sizes=None):
     If given a mini-batch tensor, will save the tensor as a grid of images.
     """
     # pdb.set_trace()
-    for ind in range(len(filenames)):
-        im = Image.fromarray(predictions[ind].astype(np.uint8))
+    for i in range(len(filenames)):
+        im = Image.fromarray(predictions[i].astype(np.uint8))
         if sizes is not None:
-            im = crop_image(im, sizes[ind])
-        fn = os.path.join(output_dir, filenames[ind][:-4] + '.png')
+            im = crop_image(im, sizes[i])
+        fn = os.path.join(output_dir, filenames[i][:-4] + '.png')
         out_dir = split(fn)[0]
         if not exists(out_dir):
             os.makedirs(out_dir)
@@ -172,10 +172,8 @@ args = parser.parse_args()
 for k, v in args.__dict__.items():
     print(k, ':', v)
 
-single_model = dla_up.__dict__.get(args.arch)(args.classes, down_ratio=args.down)
-model = torch.nn.DataParallel(single_model).cuda()
+model = dla_up.__dict__.get(args.arch)(args.classes, down_ratio=args.down).cuda()
 normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
-scales = [0.5, 0.75, 1.25, 1.5]
 
 t = []
 if args.crop_size > 0:
@@ -201,9 +199,7 @@ model.load_state_dict(torch.load(args.trained_model))
 
 
 model.eval()
-batch_time = AverageMeter()
-data_time = AverageMeter()
-end = time.time()
+
 
 hist = np.zeros((args.classes, args.classes))
 
@@ -216,12 +212,11 @@ for i, (image, label) in enumerate(test_loader):
 
     prob = torch.exp(output)
 
-    if save_vis:
-        save_output_images(pred, name, output_dir, size)
-        if prob.size(1) == 2:
-            save_prob_images(prob, name, output_dir + '_prob', size)
-        else:
-            save_colorful_images(pred, name, output_dir + '_color', cfg.CITYSCAPE_PALLETE)
+    save_output_images(pred, size)
+        # if prob.size(1) == 2:
+        #     save_prob_images(prob, name, output_dir + '_prob', size)
+        # else:
+        #     save_colorful_images(pred, name, output_dir + '_color', cfg.CITYSCAPE_PALLETE)
 
     # if has_gt:
     #     label = label.numpy()

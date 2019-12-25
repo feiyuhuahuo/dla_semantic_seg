@@ -5,8 +5,8 @@ import torch
 import os
 import glob
 
-aa = [1,23,4]
-print(mean(aa))
+left = (200 - 300) // 2
+print(left)
 # ss = nn.Softmax(dim=1)(input)
 # print(ss)
 # ll = torch.log(ss)

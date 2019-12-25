@@ -1,6 +1,8 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
-import time
+import os
+import numpy as np
+from PIL import Image
 import torch
 from utils import accuracy
 import torch.utils.data as data
@@ -9,6 +11,7 @@ import argparse
 import dla_up
 import data_transforms as transforms
 import config as cfg
+import pdb
 
 parser = argparse.ArgumentParser(description='DLA Segmentation')
 parser.add_argument('-c', '--classes', default=0, type=int)
@@ -24,6 +27,26 @@ parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
                          'is then upsampled to the original resolution '
                          'with bilinear interpolation.')
 
+def crop_image(image, size):
+    left = (image.size[0] - size[0]) // 2
+    upper = (image.size[1] - size[1]) // 2
+    right = left + size[0]
+    lower = upper + size[1]
+    return image.crop((left, upper, right, lower))
+
+def save_output_images(predictions, sizes=None):
+    """
+    Saves a given (B x C x H x W) into an image file.
+    If given a mini-batch tensor, will save the tensor as a grid of images.
+    """
+    # pdb.set_trace()
+    for i in range(4):
+        im = Image.fromarray(predictions[i].astype(np.uint8))
+        if sizes is not None:
+            im = crop_image(im, sizes)
+
+        im.save(f'results/{i}.png')
+
 
 def validate(model):
     normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
@@ -31,7 +54,7 @@ def validate(model):
                                                      transforms.ToTensor(),
                                                      normalize]))
 
-    val_loader = data.DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=8, pin_memory=True)
+    val_loader = data.DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=0, pin_memory=True)
 
     model.eval()
     score_list = []
@@ -42,6 +65,12 @@ def validate(model):
             target = target.cuda()
 
             output = model(input)[0]
+            _, pred = torch.max(output, 1)
+
+            pred = pred.cpu().numpy()
+            pdb.set_trace()
+            save_output_images(pred, sizes=(2048, 1024))
+
             score = accuracy(output, target)
             score_list.append(score)
             print(f'\r{i}/{length}', end='')

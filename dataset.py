@@ -35,6 +35,7 @@ class SegList(data.Dataset):
 
     def __getitem__(self, index):
         img = Image.open(self.original_imgs[index])
+        print(self.original_imgs[index])
         label = Image.open(self.label_imgs[index])
 
         data = [img, label]

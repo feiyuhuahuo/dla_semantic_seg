@@ -6,14 +6,12 @@ import shutil
 from val import validate
 from dataset import SegList
 import torch
-import torch.utils.data
+import torch.utils.data as data
 from torch import nn
-import torch.backends.cudnn as cudnn
 from utils import *
 import dla_up
 import data_transforms as transforms
 import config as cfg
-
 
 parser = argparse.ArgumentParser(description='DLA Segmentation')
 parser.add_argument('-c', '--classes', default=0, type=int)
@@ -37,10 +35,7 @@ parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
                          'is then upsampled to the original resolution '
                          'with bilinear interpolation.')
 parser.add_argument('--lr-mode', default='step')
-parser.add_argument('--random-scale', default=0, type=float)
-parser.add_argument('--random-rotate', default=0, type=int)
-parser.add_argument('--random-color', action='store_true', default=False)
-parser.add_argument('--save-freq', default=10, type=int)
+
 
 args = parser.parse_args()
 
@@ -51,30 +46,25 @@ model = dla_up.__dict__.get(args.arch)(args.classes, down_ratio=args.down).cuda(
 criterion = nn.NLLLoss(ignore_index=255).cuda()
 
 normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
-t = []
-if args.random_rotate > 0:
-    t.append(transforms.RandomRotate(args.random_rotate))
-if args.random_scale > 0:
-    t.append(transforms.RandomScale(args.random_scale))
-t.append(transforms.RandomCrop(args.crop_size))
-if args.random_color:
-    t.append(transforms.RandomJitter(0.4, 0.4, 0.4))
-t.extend([transforms.RandomHorizontalFlip(),
-          transforms.ToTensor(),
-          normalize])
+
+t = [transforms.RandomRotate(10),
+     transforms.RandomScale(2),
+     transforms.RandomCrop(args.crop_size),
+     transforms.RandomJitter(0.4, 0.4, 0.4),
+     transforms.RandomHorizontalFlip(),
+     transforms.ToTensor(),
+     normalize]
+
 
 train_dataset = SegList('train', transforms.Compose(t))
-train_loader = torch.utils.data.DataLoader(train_dataset,
-                                           batch_size=args.batch_size,
-                                           shuffle=True,
-                                           num_workers=8,
-                                           pin_memory=True)
+train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
 
 optimizer = torch.optim.SGD(model.optim_parameters(),
                             args.lr,
                             momentum=0.9,
                             weight_decay=0.0001)
-cudnn.benchmark = True
+
+torch.backends.cudnn.benchmark = True
 best_prec1 = 0
 start_epoch = 0
 
@@ -97,6 +87,7 @@ for epoch in range(start_epoch, args.epochs):
         torch.cuda.synchronize()
         forward_end = time.time()
 
+        pdb.set_trace()
         loss = criterion(output, target)
         score = accuracy(output, target)
 
