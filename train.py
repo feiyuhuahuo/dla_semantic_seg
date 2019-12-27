@@ -4,76 +4,56 @@ import time
 import datetime
 import shutil
 from val import validate
-from dataset import SegList
+from dataset import Seg_dataset
 import torch
 import torch.utils.data as data
 from torch import nn
 from utils import *
 import dla_up
 import data_transforms as transforms
-import config as cfg
+from config import Config
 
-parser = argparse.ArgumentParser(description='DLA Segmentation')
-parser.add_argument('-c', '--classes', default=0, type=int)
-parser.add_argument('-s', '--crop-size', default=0, type=int)
-parser.add_argument('--step', type=int, default=200)
-parser.add_argument('--arch')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                    help='input batch size for training (default: 64)')
-parser.add_argument('--train-samples', default=16000, type=int)
-parser.add_argument('--test-batch-size', type=int, default=1000,
-                    metavar='N',
-                    help='input batch size for testing (default: 1000)')
-parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                    help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                    help='learning rate (default: 0.01)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
-                    help='path to latest checkpoint (default: none)')
-parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
-                    help='Downsampling ratio of IDA network output, which '
-                         'is then upsampled to the original resolution '
-                         'with bilinear interpolation.')
-parser.add_argument('--lr-mode', default='step')
-
-
+parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
+parser.add_argument('--model', type=str, help='Input batch size for training.')
+parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
+parser.add_argument('--epochs', type=int, default=500, help='Number of epochs to train.')
+parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
+parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
+parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
+                    help='The downsampling ratio of the IDA network output, '
+                         'which is then upsampled to the original resolution.')
+parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
+parser.add_argument('--max_keep', type=int, default=20, help='The max number of checkpoints to keep.')
 args = parser.parse_args()
 
-for k, v in args.__dict__.items():
-    print(k, ':', v)
-
-model = dla_up.__dict__.get(args.arch)(args.classes, down_ratio=args.down).cuda()
-criterion = nn.NLLLoss(ignore_index=255).cuda()
-
-normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
-
-t = [transforms.RandomRotate(10),
-     transforms.RandomScale(2),
-     transforms.RandomCrop(args.crop_size),
-     transforms.RandomJitter(0.4, 0.4, 0.4),
-     transforms.RandomHorizontalFlip(),
-     transforms.ToTensor(),
-     normalize]
-
-
-train_dataset = SegList('train', transforms.Compose(t))
-train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
-
-optimizer = torch.optim.SGD(model.optim_parameters(),
-                            args.lr,
-                            momentum=0.9,
-                            weight_decay=0.0001)
+cfg = Config(mode='Training')
+cfg.update_config(args.__dict__)
+cfg.show_config()
 
 torch.backends.cudnn.benchmark = True
-best_prec1 = 0
-start_epoch = 0
 
-for epoch in range(start_epoch, args.epochs):
-    lr = adjust_lr(args, optimizer, epoch)
+aug = [transforms.Scale(ratio=0.375),  # Do scale first to reduce computation cost.
+       transforms.RandomHorizontalFlip(prob=0.5),
+       transforms.RandomRotate(angle=10),
+       transforms.Normalize(),
+       transforms.ToTensor()]
 
-    batch_time = AverageMeter(length=100)
+train_dataset = Seg_dataset('train', aug=aug)
+train_loader = data.DataLoader(train_dataset, batch_size=args.bs, shuffle=True, num_workers=8, pin_memory=True)
 
-    model.train()
+model = dla_up.__dict__.get(cfg.model)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+if cfg.resume:
+    resume_epoch = int(cfg.resume.split('.')[0].split('_')[1])
+    model.load_state_dict(torch.load(cfg.resume), strict=True)
+model.train()
+
+criterion = nn.NLLLoss(ignore_index=255).cuda()
+optimizer = torch.optim.SGD(model.optim_parameters(), cfg.lr, cfg.momentum, weight_decay=cfg.weight_decay)
+
+start_epoch = resume_epoch if resume_epoch else 0
+batch_time = AverageMeter(length=100)
+for epoch in range(start_epoch, cfg.epochs):
+    lr = adjust_lr(cfg, optimizer, epoch)
 
     for i, (input, target) in enumerate(train_loader):
         input = input.cuda().detach()
@@ -82,14 +62,12 @@ for epoch in range(start_epoch, args.epochs):
         torch.cuda.synchronize()
         forward_start = time.time()
 
-        output = model(input)[0]
+        output = model(input)
 
         torch.cuda.synchronize()
         forward_end = time.time()
 
-        pdb.set_trace()
         loss = criterion(output, target)
-        score = accuracy(output, target)
 
         optimizer.zero_grad()
         loss.backward()
@@ -109,9 +87,12 @@ for epoch in range(start_epoch, args.epochs):
             t_backward = backward_end - forward_end
             # time_remain = (train_cfg.iters - step) * iter_t
             # eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
-            print(f'[{epoch}]  {i} | loss: {loss:.3f} | score: {score:.3f} | t_data: {t_data:.3f} | '
-                  f't_forward: {t_forward:.3f} | t_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr}')
+            print(f'[{epoch}]  {i} | loss: {loss:.3f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
+                  f't_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr:.0e}')
 
-    validate(model)
+    save_name = f'{args.model}_{epoch}_{args.lr:.0e}.pth'
+    torch.save(model.state_dict(), f'weights/{save_name}')
+    print(f'Model saved as: {save_name}, begin validating.')
+
+    validate(model, args.bs)
     model.train()
-    torch.save(model.state_dict(), f'weights/{epoch}.pth')

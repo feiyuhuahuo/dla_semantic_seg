@@ -1,84 +1,55 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
-import os
 import numpy as np
-from PIL import Image
 import torch
-from utils import accuracy
 import torch.utils.data as data
-from dataset import SegList
+from dataset import Seg_dataset
 import argparse
 import dla_up
 import data_transforms as transforms
 import config as cfg
+from utils import fast_hist, per_class_iou
 import pdb
 
-parser = argparse.ArgumentParser(description='DLA Segmentation')
-parser.add_argument('-c', '--classes', default=0, type=int)
-parser.add_argument('-s', '--crop-size', default=0, type=int)
-parser.add_argument('--step', type=int, default=200)
-parser.add_argument('--arch')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                    help='input batch size for training (default: 64)')
-
+parser = argparse.ArgumentParser(description='Validation script for DLA Semantic Segmentation.')
 parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')
+parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
 parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
                     help='Downsampling ratio of IDA network output, which '
                          'is then upsampled to the original resolution '
                          'with bilinear interpolation.')
 
-def crop_image(image, size):
-    left = (image.size[0] - size[0]) // 2
-    upper = (image.size[1] - size[1]) // 2
-    right = left + size[0]
-    lower = upper + size[1]
-    return image.crop((left, upper, right, lower))
 
-def save_output_images(predictions, sizes=None):
-    """
-    Saves a given (B x C x H x W) into an image file.
-    If given a mini-batch tensor, will save the tensor as a grid of images.
-    """
-    # pdb.set_trace()
-    for i in range(4):
-        im = Image.fromarray(predictions[i].astype(np.uint8))
-        if sizes is not None:
-            im = crop_image(im, sizes)
-
-        im.save(f'results/{i}.png')
-
-
-def validate(model):
-    normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
-    val_dataset = SegList('val', transforms.Compose([transforms.RandomCrop(640),
-                                                     transforms.ToTensor(),
-                                                     normalize]))
-
-    val_loader = data.DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=0, pin_memory=True)
-
+def validate(model, batch_size):
     model.eval()
-    score_list = []
-    length = len(val_loader)
+    aug = transforms.Compose([transforms.Scale(ratio=0.375),  # Do scale first to reduce computation cost.
+                              transforms.Normalize(),
+                              transforms.ToTensor()])
+
+    val_dataset = Seg_dataset(mode='val', aug=aug)
+    val_loader = data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+
+    total_batch = len(val_dataset) / batch_size + 1
+    hist = np.zeros((cfg.class_num, cfg.class_num))
     with torch.no_grad():
-        for i, (input, target) in enumerate(val_loader):
-            input = input.cuda()
-            target = target.cuda()
+        for i, (image, label) in enumerate(val_loader):
+            image = image.cuda().detach()
 
-            output = model(input)[0]
-            _, pred = torch.max(output, 1)
+            output = model(image)
+            pred = torch.max(output, 1)[1].cpu().numpy()
+            label = label.numpy()
 
-            pred = pred.cpu().numpy()
-            pdb.set_trace()
-            save_output_images(pred, sizes=(2048, 1024))
+            hist += fast_hist(pred.flatten(), label.flatten(), 19)
+            miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)
+            print(f'\rBatch: {i}/{total_batch}, mIOU: {miou:.2f}', end='')
 
-            score = accuracy(output, target)
-            score_list.append(score)
-            print(f'\r{i}/{length}', end='')
+    ious = per_class_iou(hist) * 100
+    print('Per class iou:')
+    print(f'{i}: {iou} ' for i, iou in enumerate(ious))
 
-    print('\nmean score:',  sum(score_list) / len(score_list))
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    model = dla_up.__dict__.get('dla34up')(19, down_ratio=2).cuda()
+    model = dla_up.__dict__.get('dla34up')(cfg.class_num, down_ratio=args.down_ratio).cuda()
     model.load_state_dict(torch.load(args.trained_model), strict=False)
-    validate(model)
+    validate(model, args.bs)

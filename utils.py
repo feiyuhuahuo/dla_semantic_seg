@@ -1,5 +1,7 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
+import numpy as np
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -23,13 +25,13 @@ class AverageMeter(object):
         return sum(self.time_list) / len(self.time_list)
 
 
-def adjust_lr(args, optimizer, epoch):
-    if args.lr_mode == 'step':
-        lr = args.lr * (0.1 ** (epoch // args.step))
-    elif args.lr_mode == 'poly':
-        lr = args.lr * (1 - epoch / args.epochs) ** 0.9
+def adjust_lr(cfg, optimizer, epoch):
+    if cfg.lr_mode == 'step':
+        lr = cfg.lr * (0.1 ** (epoch // cfg.step))
+    elif cfg.lr_mode == 'poly':
+        lr = cfg.lr * (1 - epoch / cfg.epochs) ** 0.9
     else:
-        raise ValueError('Unknown lr mode {}'.format(args.lr_mode))
+        raise ValueError(f'Unknown lr mode: {cfg.lr_mode}.')
 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
@@ -37,7 +39,7 @@ def adjust_lr(args, optimizer, epoch):
     return lr
 
 
-def accuracy(output, target):
+def accuracy(output, target):  # acc = TP / (TP + FP)
     _, pred = output.max(1)
     pred = pred.view(1, -1)
     target = target.view(1, -1)
@@ -46,3 +48,12 @@ def accuracy(output, target):
     score = correct.float().sum(0) / correct.size(0) * 100.0
 
     return score.item()
+
+
+def fast_hist(pred, label, n):
+    k = (label >= 0) & (label < n)
+    return np.bincount(n * label[k].astype(int) + pred[k], minlength=n ** 2).reshape(n, n)
+
+
+def per_class_iou(hist):
+    return np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
