@@ -47,12 +47,14 @@ class Scale:
         self.ratio = ratio
 
     def __call__(self, img, label=None):
-        assert img.shape == label.shape, 'img.shape != label.shape in data_transforms.Scale'
-        r_w, r_h = img.shape * self.ratio
+        assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.Scale'
+        h, w, _ = img.shape
+        new_w = int(w * self.ratio)
+        new_h = int(h * self.ratio)
 
-        img = cv2.resize(img, (r_w, r_h), interpolation=cv2.INTER_LINEAR)
-        if label:
-            label = cv2.resize(label, (r_w, r_h), interpolation=cv2.INTER_LINEAR)
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        if label is not None:
+            label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
         return img, label
 
@@ -64,7 +66,7 @@ class RandomHorizontalFlip:
     def __call__(self, img, label=None):
         if random.random() < self.prob:
             img = cv2.flip(img, 1)
-            if label:
+            if label is not None:
                 label = cv2.flip(label, 1)
 
         return img, label
@@ -75,13 +77,13 @@ class RandomRotate(object):
         self.angle = angle
 
     def __call__(self, img, label=None):
-        angle = random.randint((-self.angle, self.angle))
+        angle = random.randint(-self.angle, self.angle)
         h, w, _ = img.shape
 
         matrix = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
         img = cv2.warpAffine(img, matrix, (w, h), borderValue=(0, 0, 0))
-        if label:
-            label = cv2.warpAffine(label, matrix, (w, h), borderValue=(255, 255, 255))
+        if label is not None:
+            label = cv2.warpAffine(label, matrix, (w, h), flags=cv2.INTER_NEAREST, borderValue=(255., 255., 255.))
 
         return img, label
 
@@ -91,7 +93,7 @@ class Normalize(object):
         pass
 
     def __call__(self, img, label=None):
-        assert img.shape[2] == 3, 'The image channel is not 3 in data_transforms.Normalize.'
+        assert img.shape[2] == 3, 'The image channel number is not 3 in data_transforms.Normalize.'
 
         for i in range(3):  # This for-loop does not influence speed.
             img[:, :, i] = (img[:, :, i] - np.mean(img[:, :, i])) / np.std(img[:, :, i])
@@ -214,6 +216,7 @@ class ToTensor(object):
         pass
 
     def __call__(self, img, label=None):  # Label must be int64 because of nn.NLLLoss.
+        img = np.transpose(img[..., (2, 1, 0)], (2, 0, 1))  # To RGB, to (c, h, w).
         return torch.tensor(img, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
 
 
@@ -282,10 +285,12 @@ class Compose:
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, img, label=None):
+    def __call__(self, img, label=None, name=None):
+        if img is None:
+            print(name)
         img = img.astype('float32')
         label = label.astype('float32')
-
         for t in self.transforms:
-            img = t(img, label)
+            img, label = t(img, label)
+
         return img, label

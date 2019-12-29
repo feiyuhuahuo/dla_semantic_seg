@@ -1,24 +1,21 @@
-from PIL import Image
+import cv2
 import glob
 import torch.utils.data as data
 
+
 class Seg_dataset(data.Dataset):
-    def __init__(self, mode, aug):
+    def __init__(self, cfg, aug):
         self.aug = aug
-        self.original_imgs = glob.glob(f'/home/feiyu/Data/cityscapes_semantic/original_imgs/{mode}/*.png')
+        self.original_imgs = glob.glob(f'{cfg.data_root}/original_imgs/{cfg.mode}/*.png')
         self.original_imgs.sort()
-        self.label_imgs = glob.glob(f'/home/feiyu/Data/cityscapes_semantic/label_imgs/{mode}/*.png')
+        self.label_imgs = glob.glob(f'{cfg.data_root}/label_imgs/{cfg.mode}/*.png')
         self.label_imgs.sort()
 
     def __getitem__(self, index):
-        print(self.original_imgs[index])
-        img = Image.open(self.original_imgs[index])
-        label = Image.open(self.label_imgs[index])
+        img = cv2.imread(self.original_imgs[index])
+        label = cv2.imread(self.label_imgs[index], cv2.IMREAD_GRAYSCALE)
 
-        data = [img, label]
-        data = list(self.aug(*data))
-
-        return tuple(data)
+        return self.aug(img, label, self.original_imgs[index])
 
     def __len__(self):
         return len(self.original_imgs)

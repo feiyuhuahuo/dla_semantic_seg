@@ -7,34 +7,34 @@ from dataset import Seg_dataset
 import argparse
 import dla_up
 import data_transforms as transforms
-import config as cfg
+from config import Config
 from utils import fast_hist, per_class_iou
 import pdb
 
 parser = argparse.ArgumentParser(description='Validation script for DLA Semantic Segmentation.')
 parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')
 parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
-parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
-                    help='Downsampling ratio of IDA network output, which '
-                         'is then upsampled to the original resolution '
-                         'with bilinear interpolation.')
+parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
+                    help='The downsampling ratio of the IDA network output, '
+                         'which is then upsampled to the original resolution.')
 
 
-def validate(model, batch_size):
+def validate(model, cfg):
+    cfg.mode = 'Val'
     model.eval()
+    
     aug = transforms.Compose([transforms.Scale(ratio=0.375),  # Do scale first to reduce computation cost.
                               transforms.Normalize(),
                               transforms.ToTensor()])
 
-    val_dataset = Seg_dataset(mode='val', aug=aug)
-    val_loader = data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+    val_dataset = Seg_dataset(cfg, aug=aug)
+    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
 
-    total_batch = len(val_dataset) / batch_size + 1
+    total_batch = int(len(val_dataset) / cfg.bs) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
     with torch.no_grad():
         for i, (image, label) in enumerate(val_loader):
             image = image.cuda().detach()
-
             output = model(image)
             pred = torch.max(output, 1)[1].cpu().numpy()
             label = label.numpy()
@@ -44,12 +44,18 @@ def validate(model, batch_size):
             print(f'\rBatch: {i}/{total_batch}, mIOU: {miou:.2f}', end='')
 
     ious = per_class_iou(hist) * 100
-    print('Per class iou:')
-    print(f'{i}: {iou} ' for i, iou in enumerate(ious))
+    print('\nPer class iou:')
+    for i, iou in enumerate(ious):
+        print(f'{i}: {iou:.2f}')
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    model = dla_up.__dict__.get('dla34up')(cfg.class_num, down_ratio=args.down_ratio).cuda()
-    model.load_state_dict(torch.load(args.trained_model), strict=False)
-    validate(model, args.bs)
+    cfg = Config(mode='Val')
+    cfg.update_config(args.__dict__)
+    cfg.show_config()
+
+    model_name = cfg.trained_model.split('.')[0].split('-')[0]
+    model = dla_up.__dict__.get(model_name)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+    model.load_state_dict(torch.load('weights/' + cfg.trained_model), strict=False)
+    validate(model, cfg)

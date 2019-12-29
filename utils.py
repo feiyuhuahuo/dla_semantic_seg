@@ -29,7 +29,7 @@ def adjust_lr(cfg, optimizer, epoch):
     if cfg.lr_mode == 'step':
         lr = cfg.lr * (0.1 ** (epoch // cfg.step))
     elif cfg.lr_mode == 'poly':
-        lr = cfg.lr * (1 - epoch / cfg.epochs) ** 0.9
+        lr = cfg.lr * (1 - epoch / cfg.epoch_num) ** 0.9
     else:
         raise ValueError(f'Unknown lr mode: {cfg.lr_mode}.')
 

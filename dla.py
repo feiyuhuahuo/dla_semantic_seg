@@ -276,6 +276,7 @@ class DLA(nn.Module):
         weights = glob.glob(f'weights/{name}-*')[0]
         state_dict = torch.load(weights)
         self.load_state_dict(state_dict, strict=False)
+        print(f'{weights} loaded.')
 
 
 def dla34(**kwargs):  # DLA-34

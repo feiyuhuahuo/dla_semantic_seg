@@ -12,7 +12,7 @@ import os
 from utils import fast_hist, per_class_iou
 from dataset import Seg_dataset
 import dla_up
-import config as cfg
+from config import Config
 import data_transforms as transforms
 
 
@@ -88,26 +88,22 @@ def resize_4d_tensor(tensor, width, height):
     return out
 
 
-parser = argparse.ArgumentParser(description='DLA Segmentation')
-parser.add_argument('-c', '--classes', default=19, type=int)
-parser.add_argument('-s', '--crop-size', default=-1, type=int)
-parser.add_argument('--arch', type=str, default='dla34up')
-parser.add_argument('--batch-size', type=int, default=2, metavar='N',
-                    help='input batch size for training (default: 64)')
+parser = argparse.ArgumentParser(description='Detection script for DLA Semantic Segmentation.')
 parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')
-parser.add_argument('--down', default=2, type=int, choices=[2, 4, 8, 16],
-                    help='Downsampling ratio of IDA network output, which '
-                         'is then upsampled to the original resolution '
-                         'with bilinear interpolation.')
+parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
+parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
+                    help='The downsampling ratio of the IDA network output, '
+                         'which is then upsampled to the original resolution.')
 
 args = parser.parse_args()
+cfg = Config(mode='Val')
+cfg.update_config(args.__dict__)
+cfg.show_config()
 
-for k, v in args.__dict__.items():
-    print(k, ':', v)
+model_name = cfg.trained_model.split('.')[0].split('-')[0]
+model = dla_up.__dict__.get(model_name)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+model.load_state_dict(torch.load('weights/' + cfg.trained_model), strict=False)
 
-torch.backends.cudnn.benchmark = True
-
-normalize = transforms.Normalize(mean=cfg.mean, std=cfg.std)
 t = []
 if args.crop_size > 0:
     t.append(transforms.PadToSize(args.crop_size))
