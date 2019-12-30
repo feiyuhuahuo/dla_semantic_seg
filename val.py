@@ -41,7 +41,7 @@ def validate(model, cfg):
 
             hist += fast_hist(pred.flatten(), label.flatten(), 19)
             miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)
-            print(f'\rBatch: {i}/{total_batch}, mIOU: {miou:.2f}', end='')
+            print(f'\rBatch: {i + 1}/{total_batch}, mIOU: {miou:.2f}', end='')
 
     ious = per_class_iou(hist) * 100
     print('\nPer class iou:')

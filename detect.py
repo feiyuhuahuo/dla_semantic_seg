@@ -1,73 +1,26 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
-import pdb
 import torch
 import argparse
-import numpy as np
-import threading
-from os.path import exists, split
-import os
 from dataset import Seg_dataset
 import dla_up
 import cv2
-from config import Config
+from config import Config, CITYSCAPE_PALLETE
 import data_transforms as transforms
 
 
-def save_image(pred, img_name):
-    pred *= int(255 / cfg.class_num)
-    cv2.imwrite(f'results/{img_name}', pred)
-
-
-def save_prob_images(prob, filenames, output_dir, sizes=None):
-    for ind in range(len(filenames)):
-        im = Image.fromarray(
-            (prob[ind][1].squeeze().data.cpu().numpy() * 255).astype(np.uint8))
-        if sizes is not None:
-            im = crop_image(im, sizes[ind])
-        fn = os.path.join(output_dir, filenames[ind][:-4] + '.png')
-        out_dir = split(fn)[0]
-        if not exists(out_dir):
-            os.makedirs(out_dir)
-        im.save(fn)
-
-
-def save_colorful_images(predictions, filenames, output_dir, palettes):
-    """
-    Saves a given (B x C x H x W) into an image file.
-    If given a mini-batch tensor, will save the tensor as a grid of images.
-    """
-    for ind in range(len(filenames)):
-        im = Image.fromarray(palettes[predictions[ind].squeeze()])
-        fn = os.path.join(output_dir, filenames[ind][:-4] + '.png')
-        out_dir = split(fn)[0]
-        if not exists(out_dir):
-            os.makedirs(out_dir)
-        im.save(fn)
-
-
-def resize_4d_tensor(tensor, width, height):
-    tensor_cpu = tensor.cpu().numpy()
-    if tensor.size(2) == height and tensor.size(3) == width:
-        return tensor_cpu
-    out_size = (tensor.size(0), tensor.size(1), height, width)
-    out = np.empty(out_size, dtype=np.float32)
-
-    def resize_channel(j):
-        for i in range(tensor.size(0)):
-            out[i, j] = np.array(
-                Image.fromarray(tensor_cpu[i, j]).resize((width, height), Image.BILINEAR))
-
-    workers = [threading.Thread(target=resize_channel, args=(j,)) for j in range(tensor.size(1))]
-    for w in workers:
-        w.start()
-    for w in workers:
-        w.join()
-    return out
+def save_image(pred, img_name, colorful):
+    if colorful:
+        pred = CITYSCAPE_PALLETE[pred].astype('uint8')
+        cv2.imwrite(f'results/{img_name}', pred)
+    else:
+        pred *= int(255 / cfg.class_num)
+        cv2.imwrite(f'results/{img_name}', pred)
 
 
 parser = argparse.ArgumentParser(description='Detection script for DLA Semantic Segmentation.')
-parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')
+parser.add_argument('--trained_model', type=str, default='', help='Path to the trained model')
+parser.add_argument('--colorful', default=False, action='store_true', help='Whether to show the colorful result.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                     help='The downsampling ratio of the IDA network output, '
                          'which is then upsampled to the original resolution.')
@@ -94,11 +47,4 @@ with torch.no_grad():
         output = model(image)
         pred = torch.max(output, 1)[1].squeeze(0).cpu().numpy()
 
-        save_image(pred, img_name)
-        # prob = torch.exp(output)
-
-        # if prob.size(1) == 2:
-        #     save_prob_images(prob, name, output_dir + '_prob', size)
-        # else:
-        #     save_colorful_images(pred, name, output_dir + '_color', cfg.CITYSCAPE_PALLETE)
-
+        save_image(pred, img_name, cfg.colorful)

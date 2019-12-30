@@ -37,5 +37,5 @@ import torch.nn as nn
 # cv2.waitKey()
 import glob
 
-aa = glob.glob('results/*')
-print(aa)
+aa=123
+print(f'{aa:6d} | ')

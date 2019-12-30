@@ -23,6 +23,7 @@ parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
 parser.add_argument('--val_interval', type=int, default=5, help='The validation interval during training.')
+parser.add_argument('--gpu_id', type=str, default='0, 1', help='The training GPU ids.')
 args = parser.parse_args()
 
 cfg = Config(mode='Train')
@@ -93,7 +94,7 @@ for epoch in range(resume_epoch, cfg.epoch_num):
             t_backward = backward_end - forward_end
             time_remain = ((cfg.epoch_num - epoch) * epoch_size + epoch_size - i) * batch_time.get_avg()
             eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
-            print(f'[{epoch}]  {i} | loss: {loss:.3f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
+            print(f'[{epoch}]  {i:3d} | loss: {loss:.3f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
                   f't_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr:.5f} | ETA: {eta}')
 
     writer.add_scalar('loss', loss, global_step=epoch)

@@ -31,7 +31,7 @@ class Config:
 
         if mode == 'Train':
             self.momentum = 0.9
-            self.decay = 0.001
+            self.decay = 0.0001
 
     def update_config(self, new_dict):
         for k, v in new_dict.items():
