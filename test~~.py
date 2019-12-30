@@ -36,5 +36,5 @@ import torch.nn as nn
 # cv2.imshow('aa',  aa)
 # cv2.waitKey()
 
-aa = 4e-4
-print(f'{aa:.0e}')
+import torch
+print(torch.__version__)

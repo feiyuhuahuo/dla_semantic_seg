@@ -1,5 +1,5 @@
 import argparse
-import pdb
+from tensorboardX import SummaryWriter
 import time
 import datetime
 from val import validate
@@ -16,13 +16,13 @@ parser = argparse.ArgumentParser(description='Training script for DLA Semantic S
 parser.add_argument('--model', type=str, default='dla34up', help='The model structure.')
 parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
 parser.add_argument('--epoch_num', type=int, default=500, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
+parser.add_argument('--lr', type=float, default=0.005, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                     help='The downsampling ratio of the IDA network output, '
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
-parser.add_argument('--max_keep', type=int, default=20, help='The max number of checkpoints to keep.')
+parser.add_argument('--val_interval', type=int, default=5, help='The validation interval during training.')
 args = parser.parse_args()
 
 cfg = Config(mode='Train')
@@ -54,9 +54,9 @@ criterion = nn.NLLLoss(ignore_index=255).cuda()
 optimizer = torch.optim.SGD(model.optim_parameters(), cfg.lr, cfg.momentum, weight_decay=cfg.decay)
 
 iter_time = 0
-
 batch_time = AverageMeter(length=100)
 epoch_size = int(len(train_dataset) / cfg.bs)
+writer = SummaryWriter(f'tensorboard_log/{cfg.model}_bs{cfg.bs}_lr{cfg.lr}')
 
 for epoch in range(resume_epoch, cfg.epoch_num):
     lr = adjust_lr(cfg, optimizer, epoch)
@@ -100,5 +100,10 @@ for epoch in range(resume_epoch, cfg.epoch_num):
     torch.save(model.state_dict(), f'weights/{save_name}')
     print(f'Model saved as: {save_name}, begin validating.')
 
-    validate(model, cfg)
-    model.train()
+    writer.add_scalar('loss', loss, global_step=epoch)
+
+    if epoch % cfg.val_interval == 0 and epoch > 0:
+        miou = validate(model, cfg)
+        model.train()
+
+        writer.add_scalar('miou', miou, global_step=epoch)

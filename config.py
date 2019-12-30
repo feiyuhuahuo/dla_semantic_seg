@@ -8,6 +8,10 @@ import numpy as np
 
 if not os.path.exists('weights'):
     os.mkdir('weights')
+if not os.path.exists('results'):
+    os.mkdir('results')
+if not os.path.exists('tensorboard_log'):
+    os.mkdir('tensorboard_log')
 
 CITYSCAPE_PALLETE = np.array([[128, 64, 128], [244, 35, 232], [70, 70, 70], [102, 102, 156],
                               [190, 153, 153], [153, 153, 153], [250, 170, 30], [220, 220, 0],
@@ -18,7 +22,7 @@ CITYSCAPE_PALLETE = np.array([[128, 64, 128], [244, 35, 232], [70, 70, 70], [102
 
 class Config:
     def __init__(self, mode):
-        self.data_root = '/home/feiyuhuahuo/Data/cityscapes_semantic'
+        self.data_root = '/home/feiyu/Data/cityscapes_semantic'
         self.mode = mode
         self.class_num = 19
         self.down_ratio = 2

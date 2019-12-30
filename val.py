@@ -28,7 +28,7 @@ def validate(model, cfg):
                               transforms.ToTensor()])
 
     val_dataset = Seg_dataset(cfg, aug=aug)
-    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
+    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=0, pin_memory=True)
 
     total_batch = int(len(val_dataset) / cfg.bs) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
@@ -48,6 +48,7 @@ def validate(model, cfg):
     for i, iou in enumerate(ious):
         print(f'{i}: {iou:.2f}')
 
+    return miou
 
 if __name__ == '__main__':
     args = parser.parse_args()
