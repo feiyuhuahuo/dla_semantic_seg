@@ -2,3 +2,5 @@
 __pycache__
 *.jpg
 results
+images
+tensorboard_log

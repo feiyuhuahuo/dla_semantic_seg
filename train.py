@@ -42,7 +42,7 @@ train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, n
 
 model = dla_up.__dict__.get(cfg.model)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
 if cfg.resume:
-    resume_epoch = int(cfg.resume.split('.')[0].split('_')[1])
+    resume_epoch = int(cfg.resume.split('.')[0].split('_')[1]) + 1
     model.load_state_dict(torch.load('weights/' + cfg.resume), strict=True)
     print(f'Resume training with \'{cfg.resume}\'.')
 else:
@@ -61,9 +61,9 @@ writer = SummaryWriter(f'tensorboard_log/{cfg.model}_bs{cfg.bs}_lr{cfg.lr}')
 for epoch in range(resume_epoch, cfg.epoch_num):
     lr = adjust_lr(cfg, optimizer, epoch)
 
-    for i, (img, target) in enumerate(train_loader):
-        img = img.cuda().detach()
-        target = target.cuda().detach()
+    for i, (data_tuple, _) in enumerate(train_loader):
+        img = data_tuple[0].cuda().detach()
+        target = data_tuple[1].cuda().detach()
 
         torch.cuda.synchronize()
         forward_start = time.time()
@@ -94,15 +94,15 @@ for epoch in range(resume_epoch, cfg.epoch_num):
             time_remain = ((cfg.epoch_num - epoch) * epoch_size + epoch_size - i) * batch_time.get_avg()
             eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
             print(f'[{epoch}]  {i} | loss: {loss:.3f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
-                  f't_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr:.0e} | ETA: {eta}')
-
-    save_name = f'{cfg.model}_{epoch}_{cfg.lr:.0e}.pth'
-    torch.save(model.state_dict(), f'weights/{save_name}')
-    print(f'Model saved as: {save_name}, begin validating.')
+                  f't_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr:.5f} | ETA: {eta}')
 
     writer.add_scalar('loss', loss, global_step=epoch)
 
-    if epoch % cfg.val_interval == 0 and epoch > 0:
+    if epoch % cfg.val_interval == 0 and epoch != resume_epoch:
+        save_name = f'{cfg.model}_{epoch}_{cfg.lr}.pth'
+        torch.save(model.state_dict(), f'weights/{save_name}')
+        print(f'Model saved as: {save_name}, begin validating.')
+
         miou = validate(model, cfg)
         model.train()
 

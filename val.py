@@ -33,11 +33,11 @@ def validate(model, cfg):
     total_batch = int(len(val_dataset) / cfg.bs) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
     with torch.no_grad():
-        for i, (image, label) in enumerate(val_loader):
-            image = image.cuda().detach()
+        for i, (data_tuple, _) in enumerate(val_loader):
+            image = data_tuple[0].cuda().detach()
             output = model(image)
             pred = torch.max(output, 1)[1].cpu().numpy()
-            label = label.numpy()
+            label = data_tuple[1].numpy()
 
             hist += fast_hist(pred.flatten(), label.flatten(), 19)
             miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)

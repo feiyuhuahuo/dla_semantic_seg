@@ -2,7 +2,7 @@ import random
 import pdb
 import numpy as np
 import cv2
-from PIL import Image, ImageEnhance
+from PIL import ImageEnhance
 import torch
 
 
@@ -47,13 +47,13 @@ class Scale:
         self.ratio = ratio
 
     def __call__(self, img, label=None):
-        assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.Scale'
         h, w, _ = img.shape
         new_w = int(w * self.ratio)
         new_h = int(h * self.ratio)
 
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
         if label is not None:
+            assert (h, w) == label.shape[:2], 'img.shape != label.shape in data_transforms.Scale'
             label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
         return img, label
@@ -72,7 +72,7 @@ class RandomHorizontalFlip:
         return img, label
 
 
-class RandomRotate(object):
+class RandomRotate:
     def __init__(self, angle):
         self.angle = angle
 
@@ -88,12 +88,12 @@ class RandomRotate(object):
         return img, label
 
 
-class Normalize(object):
+class Normalize:
     def __init__(self):  # Normalize the img with the self-mean and self-std.
         pass
 
     def __call__(self, img, label=None):
-        assert img.shape[2] == 3, 'The image channel number is not 3 in data_transforms.Normalize.'
+        assert img.shape[2] == 3, 'The number of image channel is not 3 in data_transforms.Normalize.'
 
         for i in range(3):  # This for-loop does not influence speed.
             img[:, :, i] = (img[:, :, i] - np.mean(img[:, :, i])) / np.std(img[:, :, i])
@@ -101,123 +101,16 @@ class Normalize(object):
         return img, label
 
 
-# def pad_reflection(image, top, bottom, left, right):
-#     if top == 0 and bottom == 0 and left == 0 and right == 0:
-#         return image
-#     h, w = image.shape[:2]
-#     next_top = next_bottom = next_left = next_right = 0
-#     if top > h - 1:
-#         next_top = top - h + 1
-#         top = h - 1
-#     if bottom > h - 1:
-#         next_bottom = bottom - h + 1
-#         bottom = h - 1
-#     if left > w - 1:
-#         next_left = left - w + 1
-#         left = w - 1
-#     if right > w - 1:
-#         next_right = right - w + 1
-#         right = w - 1
-#     new_shape = list(image.shape)
-#     new_shape[0] += top + bottom
-#     new_shape[1] += left + right
-#     new_image = np.empty(new_shape, dtype=image.dtype)
-#     new_image[top:top + h, left:left + w] = image
-#     new_image[:top, left:left + w] = image[top:0:-1, :]
-#     new_image[top + h:, left:left + w] = image[-1:-bottom - 1:-1, :]
-#     new_image[:, :left] = new_image[:, left * 2:left:-1]
-#     new_image[:, left + w:] = new_image[:, -right - 1:-right * 2 - 1:-1]
-#     return pad_reflection(new_image, next_top, next_bottom,
-#                           next_left, next_right)
-#
-#
-# def pad_constant(image, top, bottom, left, right, value):
-#     if top == 0 and bottom == 0 and left == 0 and right == 0:
-#         return image
-#     h, w = image.shape[:2]
-#     new_shape = list(image.shape)
-#     new_shape[0] += top + bottom
-#     new_shape[1] += left + right
-#     new_image = np.empty(new_shape, dtype=image.dtype)
-#     new_image.fill(value)
-#     new_image[top:top + h, left:left + w] = image
-#     return new_image
-#
-#
-# def pad_image(mode, image, top, bottom, left, right, value=0):
-#     if mode == 'reflection':
-#         return Image.fromarray(
-#             pad_reflection(np.asarray(image), top, bottom, left, right))
-#     elif mode == 'constant':
-#         return Image.fromarray(
-#             pad_constant(np.asarray(image), top, bottom, left, right, value))
-#     else:
-#         raise ValueError('Unknown mode {}'.format(mode))
-#
-#
-# class Pad(object):
-#     """Pads the given PIL.Image on all sides with the given "pad" value"""
-#
-#     def __init__(self, padding, fill=0):
-#         assert isinstance(padding, numbers.Number)
-#         assert isinstance(fill, numbers.Number) or isinstance(fill, str) or \
-#                isinstance(fill, tuple)
-#         self.padding = padding
-#         self.fill = fill
-#
-#     def __call__(self, image, label=None, *args):
-#         if label is not None:
-#             label = pad_image(
-#                 'constant', label,
-#                 self.padding, self.padding, self.padding, self.padding,
-#                 value=255)
-#         if self.fill == -1:
-#             image = pad_image(
-#                 'reflection', image,
-#                 self.padding, self.padding, self.padding, self.padding)
-#         else:
-#             image = pad_image(
-#                 'constant', image,
-#                 self.padding, self.padding, self.padding, self.padding,
-#                 value=self.fill)
-#         return (image, label, *args)
-#
-#
-# class PadToSize(object):
-#     """Pads the given PIL.Image on all sides with the given "pad" value"""
-#
-#     def __init__(self, side, fill=-1):
-#         assert isinstance(side, numbers.Number)
-#         assert isinstance(fill, numbers.Number) or isinstance(fill, str) or \
-#                isinstance(fill, tuple)
-#         self.side = side
-#         self.fill = fill
-#
-#     def __call__(self, image, label=None, *args):
-#         w, h = image.size
-#         s = self.side
-#         assert s >= w and s >= h
-#         top, left = (s - h) // 2, (s - w) // 2
-#         bottom = s - h - top
-#         right = s - w - left
-#         if label is not None:
-#             label = pad_image('constant', label, top, bottom, left, right,
-#                               value=255)
-#         if self.fill == -1:
-#             image = pad_image('reflection', image, top, bottom, left, right)
-#         else:
-#             image = pad_image('constant', image, top, bottom, left, right,
-#                               value=self.fill)
-#         return (image, label, *args)
-
-
 class ToTensor(object):
     def __init__(self):
         pass
 
-    def __call__(self, img, label=None):  # Label must be int64 because of nn.NLLLoss.
-        img = np.transpose(img[..., (2, 1, 0)], (2, 0, 1))  # To RGB, to (c, h, w).
-        return torch.tensor(img, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
+    def __call__(self, img, label=None):
+        img = np.transpose(img[..., (2, 1, 0)], (2, 0, 1))  # To RGB, to (C, H, W).
+        img = torch.tensor(img, dtype=torch.float32)
+        if label is not None:
+            label = torch.tensor(label, dtype=torch.int64)  # Label must be int64 because of nn.NLLLoss.
+        return img, label
 
 
 class RandomBrightness(object):
@@ -285,11 +178,11 @@ class Compose:
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, img, label=None, name=None):
-        if img is None:
-            print(name)
+    def __call__(self, img, label=None):
         img = img.astype('float32')
-        label = label.astype('float32')
+        if label is not None:
+            label = label.astype('float32')
+
         for t in self.transforms:
             img, label = t(img, label)
 

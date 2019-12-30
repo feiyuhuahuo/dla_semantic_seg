@@ -8,6 +8,8 @@ import numpy as np
 
 if not os.path.exists('weights'):
     os.mkdir('weights')
+if not os.path.exists('images'):
+    os.mkdir('images')
 if not os.path.exists('results'):
     os.mkdir('results')
 if not os.path.exists('tensorboard_log'):

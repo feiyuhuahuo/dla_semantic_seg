@@ -35,6 +35,7 @@ import torch.nn as nn
 # aa = cv2.warpAffine(aa, M=matrix, dsize=(w, h)).astype('uint8')
 # cv2.imshow('aa',  aa)
 # cv2.waitKey()
+import glob
 
-import torch
-print(torch.__version__)
+aa = glob.glob('results/*')
+print(aa)
