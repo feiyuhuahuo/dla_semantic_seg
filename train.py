@@ -11,6 +11,7 @@ from utils import *
 import dla_up
 import data_transforms as transforms
 from config import Config
+from radam import RAdam
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='dla34up', help='The model structure.')
@@ -23,7 +24,8 @@ parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
 parser.add_argument('--val_interval', type=int, default=5, help='The validation interval during training.')
-parser.add_argument('--gpu_id', type=str, default='0, 1', help='The training GPU ids.')
+# parser.add_argument('--gpu_id', type=str, default='0, 1', help='The training GPU ids.')
+parser.add_argument('--optim', type=str, default='sgd', help='The training optimizer.')
 args = parser.parse_args()
 
 cfg = Config(mode='Train')
@@ -52,7 +54,12 @@ else:
 model.train()
 
 criterion = nn.NLLLoss(ignore_index=255).cuda()
-optimizer = torch.optim.SGD(model.optim_parameters(), cfg.lr, cfg.momentum, weight_decay=cfg.decay)
+if cfg.optim == 'sgd':
+    optimizer = torch.optim.SGD(model.optim_parameters(), cfg.lr, cfg.momentum, weight_decay=cfg.decay)
+elif cfg.optim == 'adam':
+    optimizer = torch.optim.Adam(model.optim_parameters(), lr=cfg.lr, weight_decay=cfg.decay)
+elif cfg.optim == 'radam':
+    optimizer = RAdam(model.optim_parameters(), lr=cfg.lr, weight_decay=cfg.decay)
 
 iter_time = 0
 batch_time = AverageMeter(length=100)
