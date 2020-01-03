@@ -20,15 +20,16 @@ parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
 
 
 def validate(model, cfg):
+    torch.backends.cudnn.benchmark = True
     cfg.mode = 'Val'
     model.eval()
     
-    aug = transforms.Compose([transforms.Scale(ratio=0.375),  # Do scale first to reduce computation cost.
+    aug = transforms.Compose([transforms.Resize(resize_h=384),  # Do scale first to reduce computation cost.
                               transforms.Normalize(),
                               transforms.ToTensor()])
 
     val_dataset = Seg_dataset(cfg, aug=aug)
-    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=0, pin_memory=True)
+    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
 
     total_batch = int(len(val_dataset) / cfg.bs) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
@@ -56,7 +57,7 @@ if __name__ == '__main__':
     cfg.update_config(args.__dict__)
     cfg.show_config()
 
-    model_name = cfg.trained_model.split('.')[0].split('-')[0]
+    model_name = cfg.trained_model.split('_')[0]
     model = dla_up.__dict__.get(model_name)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
     model.load_state_dict(torch.load('weights/' + cfg.trained_model), strict=False)
     validate(model, cfg)

@@ -12,18 +12,19 @@ import dla_up
 import data_transforms as transforms
 from config import Config
 from radam import RAdam
+import pdb
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='dla34up', help='The model structure.')
-parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
+parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
 parser.add_argument('--epoch_num', type=int, default=500, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.005, help='Learning rate.')
+parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                     help='The downsampling ratio of the IDA network output, '
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
-parser.add_argument('--val_interval', type=int, default=5, help='The validation interval during training.')
+parser.add_argument('--val_interval', type=int, default=4, help='The validation interval during training.')
 # parser.add_argument('--gpu_id', type=str, default='0, 1', help='The training GPU ids.')
 parser.add_argument('--optim', type=str, default='sgd', help='The training optimizer.')
 args = parser.parse_args()
@@ -34,9 +35,11 @@ cfg.show_config()
 
 torch.backends.cudnn.benchmark = True
 
-aug = transforms.Compose([transforms.Scale(ratio=0.375),  # Do scale first to reduce computation cost.
+aug = transforms.Compose([transforms.RandomScale(),  # Do scale first to reduce computation cost.
+                          transforms.RandomCrop(),
                           transforms.RandomHorizontalFlip(prob=0.5),
                           transforms.RandomRotate(angle=10),
+                          transforms.PadToSize(),
                           transforms.Normalize(),
                           transforms.ToTensor()])
 
@@ -44,6 +47,7 @@ train_dataset = Seg_dataset(cfg, aug=aug)
 train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8, pin_memory=True)
 
 model = dla_up.__dict__.get(cfg.model)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+
 if cfg.resume:
     resume_epoch = int(cfg.resume.split('.')[0].split('_')[1]) + 1
     model.load_state_dict(torch.load('weights/' + cfg.resume), strict=True)
@@ -56,18 +60,19 @@ model.train()
 criterion = nn.NLLLoss(ignore_index=255).cuda()
 if cfg.optim == 'sgd':
     optimizer = torch.optim.SGD(model.optim_parameters(), cfg.lr, cfg.momentum, weight_decay=cfg.decay)
-elif cfg.optim == 'adam':
-    optimizer = torch.optim.Adam(model.optim_parameters(), lr=cfg.lr, weight_decay=cfg.decay)
 elif cfg.optim == 'radam':
     optimizer = RAdam(model.optim_parameters(), lr=cfg.lr, weight_decay=cfg.decay)
 
 iter_time = 0
 batch_time = AverageMeter(length=100)
 epoch_size = int(len(train_dataset) / cfg.bs)
-writer = SummaryWriter(f'tensorboard_log/{cfg.model}_bs{cfg.bs}_lr{cfg.lr}')
+writer = SummaryWriter(f'tensorboard_log/{cfg.optim}_bs{cfg.bs}_lr{cfg.lr}')
 
 for epoch in range(resume_epoch, cfg.epoch_num):
-    lr = adjust_lr(cfg, optimizer, epoch)
+    if cfg.optim == 'sgd':
+        lr = adjust_lr(cfg, optimizer, epoch)
+    else:
+        lr = 0.
 
     for i, (data_tuple, _) in enumerate(train_loader):
         img = data_tuple[0].cuda().detach()

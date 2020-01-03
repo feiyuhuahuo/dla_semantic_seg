@@ -30,7 +30,7 @@ cfg = Config(mode='Detect')
 cfg.update_config(args.__dict__)
 cfg.show_config()
 
-aug = transforms.Compose([transforms.Scale(ratio=0.375),  # Do scale first to reduce computation cost.
+aug = transforms.Compose([transforms.RandomScale(ratio=0.375),  # Do scale first to reduce computation cost.
                           transforms.Normalize(),
                           transforms.ToTensor()])
 
