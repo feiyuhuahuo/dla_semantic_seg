@@ -38,6 +38,7 @@ torch.backends.cudnn.benchmark = True
 aug = transforms.Compose([transforms.RandomScale(),  # Do scale first to reduce computation cost.
                           transforms.RandomCrop(),
                           transforms.RandomHorizontalFlip(prob=0.5),
+                          transforms.PhotometricDistort(),
                           transforms.RandomRotate(angle=10),
                           transforms.PadToSize(),
                           transforms.Normalize(),

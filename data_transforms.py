@@ -120,72 +120,99 @@ class Resize:
         self.resize_h = resize_h
 
     def __call__(self, img, label=None):
-        img = cv2.resize(img, (self.resize_h, self.resize_h * 2), interpolation=cv2.INTER_LINEAR)
         assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.Resize'
-        label = cv2.resize(label, (self.resize_h, self.resize_h * 2), interpolation=cv2.INTER_NEAREST)
+        img = cv2.resize(img, (self.resize_h * 2, self.resize_h), interpolation=cv2.INTER_LINEAR)
+        label = cv2.resize(label, (self.resize_h * 2, self.resize_h), interpolation=cv2.INTER_NEAREST)
 
         return img, label
 
 
-# class RandomBrightness(object):
-#     def __init__(self, var=0.4):
-#         self.var = var
-#
-#     def __call__(self, image, *args):
-#         alpha = 1.0 + np.random.uniform(-self.var, self.var)
-#         image = ImageEnhance.Brightness(image).enhance(alpha)
-#         return (image, *args)
-#
-#
-# class RandomColor(object):
-#     def __init__(self, var=0.4):
-#         self.var = var
-#
-#     def __call__(self, image, *args):
-#         alpha = 1.0 + np.random.uniform(-self.var, self.var)
-#         image = ImageEnhance.Color(image).enhance(alpha)
-#         return (image, *args)
-#
-#
-# class RandomContrast(object):
-#     def __init__(self, var=0.4):
-#         self.var = var
-#
-#     def __call__(self, image, *args):
-#         alpha = 1.0 + np.random.uniform(-self.var, self.var)
-#         image = ImageEnhance.Contrast(image).enhance(alpha)
-#         return (image, *args)
-#
-#
-# class RandomSharpness(object):
-#     def __init__(self, var=0.4):
-#         self.var = var
-#
-#     def __call__(self, image, *args):
-#         alpha = 1.0 + np.random.uniform(-self.var, self.var)
-#         image = ImageEnhance.Sharpness(image).enhance(alpha)
-#         return (image, *args)
-#
-#
-# class RandomJitter(object):
-#     def __init__(self, brightness, contrast, sharpness):
-#         self.jitter_funcs = []
-#         if brightness > 0:
-#             self.jitter_funcs.append(RandomBrightness(brightness))
-#         if contrast > 0:
-#             self.jitter_funcs.append(RandomContrast(contrast))
-#         if sharpness > 0:
-#             self.jitter_funcs.append(RandomSharpness(sharpness))
-#
-#     def __call__(self, image, *args):
-#         image.show()
-#         pdb.set_trace()
-#         if len(self.jitter_funcs) == 0:
-#             return (image, *args)
-#         order = np.random.permutation(range(len(self.jitter_funcs)))
-#         for i in range(len(order)):
-#             image = self.jitter_funcs[order[i]](image)[0]
-#         return (image, *args)
+class RandomContrast:
+    def __init__(self, prob=0.5):
+        self.lower = 0.7
+        self.upper = 1.3
+        self.prob = prob
+        assert self.upper >= self.lower, "contrast upper must be >= lower."
+        assert self.lower >= 0, "contrast lower must be non-negative."
+
+    def __call__(self, img, label=None):
+        if np.random.rand() < self.prob:
+            img *= np.random.uniform(self.lower, self.upper)
+            img = np.clip(img, 0., 255.)
+        return img, label
+
+
+class RandomBrightness:
+    def __init__(self, prob=0.5):
+        self.delta = 20.  # delta must between 0 ~ 255
+        self.prob = prob
+
+    def __call__(self, img, label=None):
+        if np.random.rand() < self.prob:
+            img += np.random.uniform(-self.delta, self.delta)
+            img = np.clip(img, 0., 255.)
+        return img, label
+
+
+class ConvertColor:
+    def __init__(self, current='BGR', transform='HSV'):
+        self.transform = transform
+        self.current = current
+
+    def __call__(self, img, label=None):
+        if self.current == 'BGR' and self.transform == 'HSV':
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        elif self.current == 'HSV' and self.transform == 'BGR':
+            img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+            img = np.clip(img, 0., 255.)
+        else:
+            raise NotImplementedError
+        return img, label
+
+
+class RandomSaturation:
+    def __init__(self, prob=0.5):
+        self.lower = 0.6
+        self.upper = 1.4
+        self.prob = prob
+        assert self.upper >= self.lower, "contrast upper must be >= lower."
+        assert self.lower >= 0, "contrast lower must be non-negative."
+
+    def __call__(self, img, label=None):
+        if np.random.rand() < self.prob:
+            img[:, :, 1] *= np.random.uniform(self.lower, self.upper)
+        return img, label
+
+
+class RandomHue:
+    def __init__(self, prob=0.5):
+        self.delta = 12.0
+        assert 0.0 <= self.delta <= 360.0
+        self.prob = prob
+
+    def __call__(self, img, label=None):
+        if np.random.rand() < self.prob:
+            img[:, :, 0] += np.random.uniform(-self.delta, self.delta)
+            img[:, :, 0][img[:, :, 0] > 360.0] -= 360.0
+            img[:, :, 0][img[:, :, 0] < 0.0] += 360.0
+        return img, label
+
+
+class PhotometricDistort:
+    def __init__(self):
+        # RandomContrast() and RandomBrightness() do not influence the normalize result if they are behind of
+        # RandomSaturation() and RandomHue().
+        self.distort = [RandomContrast(prob=0.5),
+                        RandomBrightness(prob=0.5),
+                        ConvertColor(transform='HSV'),
+                        RandomSaturation(prob=0.5),
+                        RandomHue(prob=0.5),
+                        ConvertColor(current='HSV', transform='BGR')]
+
+    def __call__(self, img, label=None):
+        for t in self.distort:
+            img, label = t(img, label)
+        return img, label
 
 
 class Compose:

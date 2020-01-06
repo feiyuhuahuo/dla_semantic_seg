@@ -40,7 +40,7 @@ import cv2
 ss = cv2.imread('elephant.jpg').astype('float32')
 
 pad_img = np.ones((700, 800, 3)) * 255
-y0 = np.random.randint(0, 700 - 394)
+y0 = np.random.uniform(0, 700 - 394)
 x0 = np.random.randint(0, 800 - 500)
 
 pad_img[y0: y0 + 394, x0: x0 + 500, :] = ss
