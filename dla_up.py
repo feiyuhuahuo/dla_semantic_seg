@@ -56,8 +56,8 @@ class IDAUp(nn.Module):
             setattr(self, 'proj_' + str(i), proj)
             setattr(self, 'up_' + str(i), up)
 
-        for i in range(1, len(channels)):
-            node = nn.Sequential(nn.Conv2d(out_dim * 2, out_dim, kernel_size=node_kernel, stride=1,
+        for i in range(1, len(channels)):  # 2 for common node, (i + 1) for nested IDAup node.
+            node = nn.Sequential(nn.Conv2d(out_dim * (i + 1), out_dim, kernel_size=node_kernel, stride=1,
                                            padding=node_kernel // 2, bias=False),
                                  BatchNorm(out_dim),
                                  nn.ReLU(inplace=True))
@@ -81,9 +81,19 @@ class IDAUp(nn.Module):
 
         x = layers[0]
         y = []
+
+        skip_cat = [x]
         for i in range(1, len(layers)):
-            node = getattr(self, 'node_' + str(i))
-            x = node(torch.cat([x, layers[i]], 1))
+            node = getattr(self, f'node_{i}')
+
+            if i >= 2:  # Nested IDAup implementation.
+                additional_in = skip_cat[:i - 1]
+                additional_in.reverse()
+                x = node(torch.cat([x, layers[i]] + additional_in, 1))
+            else:
+                x = node(torch.cat((x, layers[i]), 1))
+
+            skip_cat.append(x)
             y.append(x)
 
         return x, y

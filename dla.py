@@ -8,10 +8,6 @@ import glob
 BatchNorm = nn.BatchNorm2d
 
 
-def conv3x3(in_planes, out_planes, stride=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
-
-
 class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, dilation=1):
         super(BasicBlock, self).__init__()
@@ -237,22 +233,8 @@ class DLA(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _make_level(self, block, inplanes, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or inplanes != planes:
-            downsample = nn.Sequential(nn.MaxPool2d(stride, stride=stride),
-                                       nn.Conv2d(inplanes, planes,
-                                                 kernel_size=1, stride=1, bias=False),
-                                       BatchNorm(planes))
-
-        layers = []
-        layers.append(block(inplanes, planes, stride, downsample=downsample))
-        for i in range(1, blocks):
-            layers.append(block(inplanes, planes))
-
-        return nn.Sequential(*layers)
-
-    def _make_conv_level(self, inplanes, planes, convs, stride=1, dilation=1):
+    @staticmethod
+    def _make_conv_level(inplanes, planes, convs, stride=1, dilation=1):
         modules = []
         for i in range(convs):
             modules.extend([nn.Conv2d(inplanes, planes, kernel_size=3,
