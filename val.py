@@ -51,7 +51,7 @@ def validate(model, cfg):
         for i, iou in enumerate(ious):
             print(f'{i}: {iou:.2f}')
 
-    miou_list.append(miou)
+        miou_list.append(miou)
 
     return miou_list
 

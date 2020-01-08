@@ -136,14 +136,14 @@ class DLASeg(nn.Module):
 
         up_factor = 2 ** self.first_level
         if up_factor > 1:
-            up = nn.ConvTranspose2d(classes, classes, up_factor * 2, stride=up_factor, padding=up_factor // 2,
-                                    output_padding=0, groups=classes, bias=False)
-            fill_up_weights(up)
-            up.weight.requires_grad = False
+            up = nn.Upsample(scale_factor=up_factor, mode='bilinear', align_corners=True)
+            # up = nn.ConvTranspose2d(classes, classes, up_factor * 2, stride=up_factor, padding=up_factor // 2,
+            #                         output_padding=0, groups=classes, bias=False)
+            # fill_up_weights(up)
+            # up.weight.requires_grad = False
         else:
             up = Identity()
         self.up = up
-        self.softmax = nn.LogSoftmax(dim=1)
 
         for m in self.fc.modules():
             if isinstance(m, nn.Conv2d):
@@ -158,7 +158,6 @@ class DLASeg(nn.Module):
         x = self.dla_up(x[self.first_level:])
         x = self.fc(x)
         x = self.up(x)
-        x = self.softmax(x)
 
         return x
 

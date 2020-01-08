@@ -58,7 +58,7 @@ else:
     print('Training with ImageNet pre-trained weights.')
 model.train()
 
-criterion = nn.NLLLoss(ignore_index=255).cuda()
+criterion = nn.CrossEntropyLoss(ignore_index=255).cuda()
 if cfg.optim == 'sgd':
     optimizer = torch.optim.SGD(model.optim_parameters(), cfg.lr, cfg.momentum, weight_decay=cfg.decay)
 elif cfg.optim == 'radam':
