@@ -5,14 +5,6 @@ from torch import nn
 import pdb
 import dla
 
-BatchNorm = nn.BatchNorm2d
-
-
-def set_bn(bn):
-    global BatchNorm
-    BatchNorm = bn
-    dla.BatchNorm = bn
-
 
 class Identity(nn.Module):
     def __init__(self):
@@ -38,13 +30,14 @@ class IDAUp(nn.Module):
         super().__init__()
         self.channels = channels
         self.out_dim = out_dim
+        self.nested = False
 
         for i, c in enumerate(channels):
             if c == out_dim:
                 proj = Identity()
             else:
                 proj = nn.Sequential(nn.Conv2d(c, out_dim, kernel_size=1, stride=1, bias=False),
-                                     BatchNorm(out_dim),
+                                     nn.BatchNorm2d(out_dim),
                                      nn.ReLU(inplace=True))
             f = int(up_factors[i])
             if f == 1:
@@ -57,9 +50,10 @@ class IDAUp(nn.Module):
             setattr(self, 'up_' + str(i), up)
 
         for i in range(1, len(channels)):  # 2 for common node, (i + 1) for nested IDAup node.
-            node = nn.Sequential(nn.Conv2d(out_dim * (i + 1), out_dim, kernel_size=node_kernel, stride=1,
+            C_in = out_dim * (i + 1) if self.nested else out_dim * 2
+            node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
                                            padding=node_kernel // 2, bias=False),
-                                 BatchNorm(out_dim),
+                                 nn.BatchNorm2d(out_dim),
                                  nn.ReLU(inplace=True))
             setattr(self, 'node_' + str(i), node)
 
@@ -67,7 +61,7 @@ class IDAUp(nn.Module):
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, BatchNorm):
+            elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -86,7 +80,7 @@ class IDAUp(nn.Module):
         for i in range(1, len(layers)):
             node = getattr(self, f'node_{i}')
 
-            if i >= 2:  # Nested IDAup implementation.
+            if i >= 2 and self.nested:  # Nested IDAup implementation.
                 additional_in = skip_cat[:i - 1]
                 additional_in.reverse()
                 x = node(torch.cat([x, layers[i]] + additional_in, 1))
@@ -155,7 +149,7 @@ class DLASeg(nn.Module):
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, BatchNorm):
+            elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -195,11 +189,3 @@ def dla102up(classes, **kwargs):
 def dla169up(classes, **kwargs):
     model = DLASeg('dla169', classes, **kwargs)
     return model
-
-# import torch
-# net = dla34up(19)
-# print(net)
-#
-# aa = torch.rand(4, 3, 64, 64)
-# out = net(aa)
-# pdb.set_trace()

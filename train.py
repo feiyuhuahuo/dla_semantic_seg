@@ -69,7 +69,7 @@ batch_time = AverageMeter(length=100)
 epoch_size = int(len(train_dataset) / cfg.bs)
 writer = SummaryWriter(f'tensorboard_log/{cfg.optim}_bs{cfg.bs}_lr{cfg.lr}')
 
-for epoch in range(resume_epoch, cfg.epoch_num):
+for epoch in range(resume_epoch + 1, cfg.epoch_num + 1):
     if cfg.optim == 'sgd':
         lr = adjust_lr(cfg, optimizer, epoch)
     else:
@@ -117,7 +117,11 @@ for epoch in range(resume_epoch, cfg.epoch_num):
         torch.save(model.state_dict(), f'weights/{save_name}')
         print(f'Model saved as: {save_name}, begin validating.')
 
-        miou = validate(model, cfg)
+        miou_list = validate(model, cfg)
         model.train()
 
-        writer.add_scalar('miou', miou, global_step=epoch)
+        writer.add_scalar('miou/416', miou_list[0], global_step=epoch)
+        writer.add_scalar('miou/480', miou_list[1], global_step=epoch)
+        writer.add_scalar('miou/544', miou_list[2], global_step=epoch)
+
+writer.close()

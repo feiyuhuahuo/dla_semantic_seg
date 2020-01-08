@@ -23,33 +23,37 @@ def validate(model, cfg):
     torch.backends.cudnn.benchmark = True
     cfg.mode = 'Val'
     model.eval()
-    
-    aug = transforms.Compose([transforms.Resize(resize_h=384),  # Do scale first to reduce computation cost.
-                              transforms.Normalize(),
-                              transforms.ToTensor()])
 
-    val_dataset = Seg_dataset(cfg, aug=aug)
-    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
+    miou_list = []
+    for resize_h in [416, 480, 544]:
+        aug = transforms.Compose([transforms.Resize(resize_h=resize_h),  # Do scale first to reduce computation cost.
+                                  transforms.Normalize(),
+                                  transforms.ToTensor()])
 
-    total_batch = int(len(val_dataset) / cfg.bs) + 1
-    hist = np.zeros((cfg.class_num, cfg.class_num))
-    with torch.no_grad():
-        for i, (data_tuple, _) in enumerate(val_loader):
-            image = data_tuple[0].cuda().detach()
-            output = model(image)
-            pred = torch.max(output, 1)[1].cpu().numpy()
-            label = data_tuple[1].numpy()
+        val_dataset = Seg_dataset(cfg, aug=aug)
+        val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
 
-            hist += fast_hist(pred.flatten(), label.flatten(), 19)
-            miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)
-            print(f'\rBatch: {i + 1}/{total_batch}, mIOU: {miou:.2f}', end='')
+        total_batch = int(len(val_dataset) / cfg.bs) + 1
+        hist = np.zeros((cfg.class_num, cfg.class_num))
+        with torch.no_grad():
+            for i, (data_tuple, _) in enumerate(val_loader):
+                image = data_tuple[0].cuda().detach()
+                output = model(image)
+                pred = torch.max(output, 1)[1].cpu().numpy()
+                label = data_tuple[1].numpy()
 
-    ious = per_class_iou(hist) * 100
-    print('\nPer class iou:')
-    for i, iou in enumerate(ious):
-        print(f'{i}: {iou:.2f}')
+                hist += fast_hist(pred.flatten(), label.flatten(), 19)
+                miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)
+                print(f'\rBatch: {i + 1}/{total_batch}, mIOU: {miou:.2f}', end='')
 
-    return miou
+        ious = per_class_iou(hist) * 100
+        print('\nPer class iou:')
+        for i, iou in enumerate(ious):
+            print(f'{i}: {iou:.2f}')
+
+    miou_list.append(miou)
+
+    return miou_list
 
 if __name__ == '__main__':
     args = parser.parse_args()

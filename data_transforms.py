@@ -6,7 +6,7 @@ import torch
 
 class RandomScale:
     def __init__(self):
-        self.ratio_range = (12, 21)
+        self.ratio_range = (12, 20)
 
     def __call__(self, img, label=None):
         new_h = np.random.randint(self.ratio_range[0], self.ratio_range[1]) * 32
@@ -22,7 +22,7 @@ class RandomScale:
 
 class RandomCrop:
     def __init__(self):
-        self.crop_range = (10, 23)
+        self.crop_range = (10, 22)
 
     def __call__(self, img, label=None):
         crop_h = np.random.randint(self.crop_range[0], self.crop_range[1]) * 32
@@ -70,7 +70,7 @@ class RandomRotate:
 
 class PadToSize:
     def __init__(self):
-        self.pad_h = 20 * 32
+        self.pad_h = 19 * 32
         self.pad_w = self.pad_h * 2
 
     def __call__(self, img, label=None):
@@ -210,8 +210,8 @@ class PhotometricDistort:
                         ConvertColor(current='HSV', transform='BGR')]
 
     def __call__(self, img, label=None):
-        for t in self.distort:
-            img, label = t(img, label)
+        for aa in self.distort:
+            img, label = aa(img, label)
         return img, label
 
 

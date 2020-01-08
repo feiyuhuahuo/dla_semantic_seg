@@ -35,8 +35,17 @@ import torch.nn as nn
 # aa = cv2.warpAffine(aa, M=matrix, dsize=(w, h)).astype('uint8')
 # cv2.imshow('aa',  aa)
 # cv2.waitKey()
-import torch
+from tensorboardX import SummaryWriter
 
-aa=[23]
-aa.reverse()
-print(([44, 55] + aa))
+writer_1 = SummaryWriter('loggg/11')
+writer_2 = SummaryWriter("loggg/22")
+aa = [1, 2, 3, 5, 7, 2, 9]
+bb = [11, 2, 3, 15, 3, 8, 10]
+for i in range(len(aa)):
+    writer_1.add_scalar('loss', aa[i], global_step=i)
+    # writer_1.flush()
+    writer_2.add_scalar('loss', bb[i], global_step=i)
+    # writer_2.flush()
+
+writer_1.close()
+writer_2.close()
