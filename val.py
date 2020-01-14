@@ -35,7 +35,7 @@ def validate(model, cfg):
             pred = torch.max(output, 1)[1].cpu().numpy().astype('int32')
             label = data_tuple[1].numpy().astype('int32')
 
-            hist += fast_hist(pred.flatten(), label.flatten(), 19)
+            hist += fast_hist(pred.flatten(), label.flatten(), cfg.class_num)
             miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)
             print(f'\rBatch: {i + 1}/{total_batch}, mIOU: {miou:.2f}', end='')
 
@@ -54,5 +54,5 @@ if __name__ == '__main__':
 
     model_name = cfg.trained_model.split('_')[0]
     model = DLASeg(model_name, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
-    model.load_state_dict(torch.load('weights/' + cfg.trained_model), strict=False)
+    model.load_state_dict(torch.load('weights/' + cfg.trained_model), strict=True)
     validate(model, cfg)

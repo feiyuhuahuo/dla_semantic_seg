@@ -9,7 +9,6 @@ import torch.utils.data as data
 from torch import nn
 from utils import *
 from dla_up import DLASeg
-import data_transforms as transforms
 from config import Config
 from radam import RAdam
 import pdb
@@ -18,7 +17,7 @@ parser = argparse.ArgumentParser(description='Training script for DLA Semantic S
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='voc2012', help='The dataset for training.')
 parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
-parser.add_argument('--epoch_num', type=int, default=500, help='Number of epochs to train.')
+parser.add_argument('--epoch_num', type=int, default=100, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
@@ -35,7 +34,7 @@ cfg.show_config()
 torch.backends.cudnn.benchmark = True
 
 train_dataset = Seg_dataset(cfg)
-train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=0, pin_memory=True)
+train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8, pin_memory=True)
 
 model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
 
@@ -57,9 +56,9 @@ elif cfg.optim == 'radam':
 iter_time = 0
 batch_time = AverageMeter(length=100)
 epoch_size = int(len(train_dataset) / cfg.bs)
-writer = SummaryWriter(f'tensorboard_log/{cfg.optim}_bs{cfg.bs}_lr{cfg.lr}')
+writer = SummaryWriter(f'tensorboard_log/{cfg.dataset}_{cfg.model}_{cfg.lr}')
 
-for epoch in range(resume_epoch + 1, cfg.epoch_num + 1):
+for epoch in range(resume_epoch, cfg.epoch_num):
     if cfg.optim == 'sgd':
         lr = adjust_lr(cfg, optimizer, epoch)
     else:
@@ -68,7 +67,7 @@ for epoch in range(resume_epoch + 1, cfg.epoch_num + 1):
     for i, (data_tuple, _) in enumerate(train_loader):
         img = data_tuple[0].cuda().detach()
         target = data_tuple[1].cuda().detach()
-
+        print(img.shape, target.shape)
         torch.cuda.synchronize()
         forward_start = time.time()
 
@@ -103,18 +102,16 @@ for epoch in range(resume_epoch + 1, cfg.epoch_num + 1):
     writer.add_scalar('loss', loss, global_step=epoch)
 
     if epoch % cfg.val_interval == 0 and epoch != resume_epoch:
-        save_name = f'{cfg.model}_{epoch}_{cfg.lr}.pth'
+        save_name = f'{cfg.dataset}_{cfg.model}_{epoch}_{cfg.lr}.pth'
         torch.save(model.state_dict(), f'weights/{save_name}')
         print(f'Model saved as: {save_name}, begin validating.')
 
         cfg.mode = 'Val'
         cfg.to_val_aug()
         model.eval()
-        miou_list = validate(model, cfg)
+        miou = validate(model, cfg)
         model.train()
 
-        writer.add_scalar('miou/416', miou_list[0], global_step=epoch)
-        writer.add_scalar('miou/480', miou_list[1], global_step=epoch)
-        writer.add_scalar('miou/544', miou_list[2], global_step=epoch)
+        writer.add_scalar('miou', miou, global_step=epoch)
 
 writer.close()

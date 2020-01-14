@@ -30,7 +30,7 @@ voc_train_aug = transforms.Compose([transforms.RandomScale((12, 22)),
                                     transforms.Normalize(),
                                     transforms.ToTensor()])
 
-voc_val_aug = transforms.Compose([transforms.NearestResize(),
+voc_val_aug = transforms.Compose([transforms.PadIfNeeded(pad_to=512),
                                   transforms.Normalize(),
                                   transforms.ToTensor()])
 

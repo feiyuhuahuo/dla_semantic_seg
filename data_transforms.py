@@ -126,6 +126,33 @@ class PadToSize:
         return img, label
 
 
+class PadIfNeeded:
+    def __init__(self, pad_to):
+        self.pad_to = pad_to
+
+    def __call__(self, img, label=None):
+        img_h, img_w, _ = img.shape
+        long_size = max(img_h, img_w)
+
+        ratio = self.pad_to / long_size
+
+        new_w = int(img_w * ratio)
+        new_h = int(img_h * ratio)
+
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+
+        pad_img = np.random.rand(self.pad_to, self.pad_to, 3) * 255
+        pad_label = np.ones((self.pad_to, self.pad_to)) * 255
+        pad_img = pad_img.astype('float32')
+        pad_label = pad_label.astype('float32')
+
+        pad_img[0: new_h, 0: new_w, :] = img
+        pad_label[0: new_h, 0: new_w] = label
+
+        return pad_img, pad_label
+
+
 class Normalize:
     def __init__(self):  # Normalize the img with the self-mean and self-std.
         pass
