@@ -5,24 +5,33 @@ import torch
 
 
 class RandomScale:
-    def __init__(self):
-        self.ratio_range = (12, 20)
+    """
+    Keeping ratio scale along the image long side.
+    """
+
+    def __init__(self, scale_range):
+        self.scale_range = scale_range
 
     def __call__(self, img, label=None):
-        new_h = np.random.randint(self.ratio_range[0], self.ratio_range[1]) * 32
-        new_w = new_h * 2
+        img_h, img_w, _ = img.shape
+        assert (img_h, img_w) == label.shape[:2], 'img.shape != label.shape in data_transforms.RandomScale'
 
-        h, w, _ = img.shape
+        long_size = max(img_h, img_w)
+        new_size = np.random.randint(self.scale_range[0], self.scale_range[1]) * 32
+        ratio = new_size / long_size
+
+        new_w = int(((img_w * ratio) // 32 + 1) * 32)
+        new_h = int(((img_h * ratio) // 32 + 1) * 32)
+
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-        assert (h, w) == label.shape[:2], 'img.shape != label.shape in data_transforms.RandomScale'
         label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
         return img, label
 
 
 class RandomCrop:
-    def __init__(self):
-        self.crop_range = (10, 22)
+    def __init__(self, crop_range):
+        self.crop_range = crop_range
 
     def __call__(self, img, label=None):
         crop_h = np.random.randint(self.crop_range[0], self.crop_range[1]) * 32
@@ -35,6 +44,33 @@ class RandomCrop:
 
             img = img[y0: y0 + crop_h, x0: x0 + crop_w, :]
             label = label[y0: y0 + crop_h, x0: x0 + crop_w]
+
+        return img, label
+
+
+class FixCrop:
+    def __init__(self, pad_size, crop_size):
+        self.pad_size = pad_size
+        self.crop_size = crop_size
+
+    def __call__(self, img, label=None):
+        img_h, img_w, _ = img.shape
+
+        pad_img = np.random.rand(self.pad_size, self.pad_size, 3) * 255  # pad to self.pad_size
+        pad_label = np.ones((self.pad_size, self.pad_size)) * 255
+        pad_img = pad_img.astype('float32')
+        pad_label = pad_label.astype('float32')
+
+        y0 = (self.pad_size - img_h) // 2
+        x0 = (self.pad_size - img_w) // 2
+        pad_img[y0: y0 + img_h, x0: x0 + img_w, :] = img
+        pad_label[y0: y0 + img_h, x0: x0 + img_w] = label
+
+        crop_y0 = np.random.randint(0, self.pad_size - self.crop_size)  # crop to self.crop_size
+        crop_x0 = np.random.randint(0, self.pad_size - self.crop_size)
+
+        img = pad_img[crop_y0: crop_y0 + self.crop_size, crop_x0: crop_x0 + self.crop_size, :]
+        label = pad_label[crop_y0: crop_y0 + self.crop_size, crop_x0: crop_x0 + self.crop_size]
 
         return img, label
 
@@ -115,14 +151,47 @@ class ToTensor(object):
         return img, label
 
 
-class Resize:
-    def __init__(self, resize_h):
-        self.resize_h = resize_h
+class SpecifiedResize:
+    """
+    Keeping ratio resize with a specified length along the image long side.
+    """
+
+    def __init__(self, resize_long):
+        self.resize_long = resize_long
 
     def __call__(self, img, label=None):
-        assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.Resize'
-        img = cv2.resize(img, (self.resize_h * 2, self.resize_h), interpolation=cv2.INTER_LINEAR)
-        label = cv2.resize(label, (self.resize_h * 2, self.resize_h), interpolation=cv2.INTER_NEAREST)
+        img_h, img_w, _ = img.shape
+        assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.SpecifiedResize'
+
+        long_size = max(img_h, img_w)
+        ratio = self.resize_long / long_size
+
+        new_w = int(((img_w * ratio) // 32 + 1) * 32)
+        new_h = int(((img_h * ratio) // 32 + 1) * 32)
+
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+
+        return img, label
+
+
+class NearestResize:
+    """
+    Keeping ratio resize to the nearest size with respect to the image size.
+    """
+
+    def __init__(self):
+        pass
+
+    def __call__(self, img, label=None):
+        img_h, img_w, _ = img.shape
+        assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.NearestResize'
+
+        new_w = int((img_w // 32 + 1) * 32)
+        new_h = int((img_h // 32 + 1) * 32)
+
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
         return img, label
 
@@ -228,3 +297,10 @@ class Compose:
             img, label = t(img, label)
 
         return img, label
+
+    def __repr__(self):
+        names = self.transforms[0].__class__.__name__
+        for aa in self.transforms[1:]:
+            names += '\n' + '     ' + aa.__class__.__name__
+
+        return names

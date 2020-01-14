@@ -1,40 +1,27 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
+import glob
+import cv2
 
-import torch
-import torch.nn as nn
+PASCAL_CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
+                  'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
 
-# inn = torch.tensor([[1, 4, -1],
-#                     [2, 5, 7],
-#                     [3, 4, 1]]).float()
-#
-# ss = nn.Softmax(dim=1)(inn)
-# ll = torch.log(ss)
-# print(ll)
-#
-#
-# loss = nn.NLLLoss(ignore_index=1)
-# target = torch.tensor([0, 1, 2], dtype=torch.int64)
-# print(target.dtype)
-# print(loss(ll, target))
-#
-# loss2 = nn.CrossEntropyLoss()
-# print(loss2(ll, target))
+root = '/home/feiyu/Data/VOC2012/'
+original_imgs = glob.glob(f'{root}/original_imgs/Train/*.jpg')
+original_imgs.sort()
+
+label_imgs = glob.glob(f'{root}/label_imgs/Train/*.png')
+label_imgs.sort()
 
 
-# import cv2
-# import numpy as np
-# import time
-# from config import mean, std
-
-# aa = cv2.imread('magpie.jpg')
-# aa = aa.astype('float32')
-# h, w, _ = aa.shape
-# matrix = cv2.getRotationMatrix2D((w / 2, h / 2), 10, 1.0)
-#
-# aa = cv2.warpAffine(aa, M=matrix, dsize=(w, h)).astype('uint8')
-# cv2.imshow('aa',  aa)
+# for i in range(6000):
+#     img = cv2.imread(original_imgs[i])
+#     print(max(img.shape))
+# label = cv2.imread(label_imgs[4180], cv2.IMREAD_GRAYSCALE)
+# cv2.imshow('img', img)
+# cv2.imshow('label', label)
 # cv2.waitKey()
-from tensorboardX import SummaryWriter
-import torch
-torch.nn.CrossEntropyLoss()
+print(428-428%32)
+
+
+

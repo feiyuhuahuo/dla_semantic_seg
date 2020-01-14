@@ -52,7 +52,7 @@ def accuracy(output, target):  # acc = TP / (TP + FP)
 
 def fast_hist(pred, label, n):
     k = (label >= 0) & (label < n)
-    return np.bincount(n * label[k].astype(int) + pred[k], minlength=n ** 2).reshape(n, n)
+    return np.bincount(n * label[k] + pred[k], minlength=n ** 2).reshape(n, n)
 
 
 def per_class_iou(hist):

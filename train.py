@@ -8,14 +8,15 @@ import torch
 import torch.utils.data as data
 from torch import nn
 from utils import *
-import dla_up
+from dla_up import DLASeg
 import data_transforms as transforms
 from config import Config
 from radam import RAdam
 import pdb
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
-parser.add_argument('--model', type=str, default='dla34up', help='The model structure.')
+parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
+parser.add_argument('--dataset', type=str, default='voc2012', help='The dataset for training.')
 parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
 parser.add_argument('--epoch_num', type=int, default=500, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
@@ -25,29 +26,18 @@ parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
 parser.add_argument('--val_interval', type=int, default=4, help='The validation interval during training.')
-# parser.add_argument('--gpu_id', type=str, default='0, 1', help='The training GPU ids.')
 parser.add_argument('--optim', type=str, default='sgd', help='The training optimizer.')
 args = parser.parse_args()
 
-cfg = Config(mode='Train')
-cfg.update_config(args.__dict__)
+cfg = Config(args=args.__dict__, mode='Train')
 cfg.show_config()
 
 torch.backends.cudnn.benchmark = True
 
-aug = transforms.Compose([transforms.RandomScale(),  # Do scale first to reduce computation cost.
-                          transforms.RandomCrop(),
-                          transforms.RandomHorizontalFlip(prob=0.5),
-                          transforms.PhotometricDistort(),
-                          transforms.RandomRotate(angle=10),
-                          transforms.PadToSize(),
-                          transforms.Normalize(),
-                          transforms.ToTensor()])
+train_dataset = Seg_dataset(cfg)
+train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=0, pin_memory=True)
 
-train_dataset = Seg_dataset(cfg, aug=aug)
-train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8, pin_memory=True)
-
-model = dla_up.__dict__.get(cfg.model)(cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
 
 if cfg.resume:
     resume_epoch = int(cfg.resume.split('.')[0].split('_')[1]) + 1
@@ -117,6 +107,9 @@ for epoch in range(resume_epoch + 1, cfg.epoch_num + 1):
         torch.save(model.state_dict(), f'weights/{save_name}')
         print(f'Model saved as: {save_name}, begin validating.')
 
+        cfg.mode = 'Val'
+        cfg.to_val_aug()
+        model.eval()
         miou_list = validate(model, cfg)
         model.train()
 

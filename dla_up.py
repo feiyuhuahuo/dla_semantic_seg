@@ -136,11 +136,10 @@ class DLASeg(nn.Module):
 
         up_factor = 2 ** self.first_level
         if up_factor > 1:
-            up = nn.Upsample(scale_factor=up_factor, mode='bilinear', align_corners=True)
-            # up = nn.ConvTranspose2d(classes, classes, up_factor * 2, stride=up_factor, padding=up_factor // 2,
-            #                         output_padding=0, groups=classes, bias=False)
-            # fill_up_weights(up)
-            # up.weight.requires_grad = False
+            up = nn.ConvTranspose2d(classes, classes, up_factor * 2, stride=up_factor, padding=up_factor // 2,
+                                    output_padding=0, groups=classes, bias=False)
+            fill_up_weights(up)
+            up.weight.requires_grad = False
         else:
             up = Identity()
         self.up = up
@@ -168,23 +167,3 @@ class DLASeg(nn.Module):
             yield param
         for param in self.fc.parameters():
             yield param
-
-
-def dla34up(classes, **kwargs):
-    model = DLASeg('dla34', classes, **kwargs)
-    return model
-
-
-def dla60up(classes, **kwargs):
-    model = DLASeg('dla60', classes, **kwargs)
-    return model
-
-
-def dla102up(classes, **kwargs):
-    model = DLASeg('dla102', classes, **kwargs)
-    return model
-
-
-def dla169up(classes, **kwargs):
-    model = DLASeg('dla169', classes, **kwargs)
-    return model

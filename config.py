@@ -2,9 +2,10 @@
 # -*- coding:utf-8 -*-
 import os
 import numpy as np
+import data_transforms as transforms
 
-# std = [0.1829540508368939, 0.18656561047509476, 0.18447508988480435]
-# mean = [0.29010095242892997, 0.32808144844279574, 0.28696394422942517]
+PASCAL_CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
+                  'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
 
 if not os.path.exists('weights'):
     os.mkdir('weights')
@@ -21,21 +22,65 @@ CITYSCAPE_PALLETE = np.array([[128, 64, 128], [244, 35, 232], [70, 70, 70], [102
                               [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100],
                               [0, 80, 100], [0, 0, 230], [119, 11, 32], [0, 0, 0]], dtype=np.uint8)
 
+voc_train_aug = transforms.Compose([transforms.RandomScale((12, 22)),
+                                    transforms.FixCrop(pad_size=22 * 32, crop_size=512),
+                                    transforms.RandomHorizontalFlip(prob=0.5),
+                                    transforms.PhotometricDistort(),
+                                    transforms.RandomRotate(angle=10),
+                                    transforms.Normalize(),
+                                    transforms.ToTensor()])
+
+voc_val_aug = transforms.Compose([transforms.NearestResize(),
+                                  transforms.Normalize(),
+                                  transforms.ToTensor()])
+
+cityscapes_train_aug = transforms.Compose([transforms.RandomScale((24, 40)),
+                                           transforms.RandomCrop((10, 22)),
+                                           transforms.RandomHorizontalFlip(prob=0.5),
+                                           transforms.PhotometricDistort(),
+                                           transforms.RandomRotate(angle=10),
+                                           transforms.PadToSize(),
+                                           transforms.Normalize(),
+                                           transforms.ToTensor()])
+
+cityscapes_val_aug = transforms.Compose([transforms.SpecifiedResize(resize_long=1088),
+                                         transforms.Normalize(),
+                                         transforms.ToTensor()])
+
 
 class Config:
-    def __init__(self, mode):
-        self.data_root = '/home/feiyu/Data/cityscapes_semantic'
+    def __init__(self, args, mode):
         self.mode = mode
-        self.class_num = 19
-        self.down_ratio = 2
 
-        if mode == 'Train':
-            self.momentum = 0.9
-            self.decay = 0.0001
-
-    def update_config(self, new_dict):
-        for k, v in new_dict.items():
+        for k, v in args.items():
             self.__setattr__(k, v)
+
+        if self.dataset == 'voc2012':
+            self.data_root = '/home/feiyu/Data/VOC2012'
+            self.class_num = 21
+            if self.mode == 'Train':
+                self.aug = voc_train_aug
+                self.momentum = 0.9
+                self.decay = 0.0001
+            elif self.mode == 'Val':
+                self.aug = voc_val_aug
+
+        elif self.dataset == 'cityscapes':
+            self.data_root = '/home/feiyu/Data/cityscapes_semantic'
+            self.class_num = 19
+            if self.mode == 'Train':
+                self.aug = cityscapes_train_aug
+                self.momentum = 0.9
+                self.decay = 0.0001
+
+            elif self.mode == 'Val':
+                self.aug = cityscapes_val_aug
+
+    def to_val_aug(self):
+        if self.dataset == 'voc2012':
+            self.aug = voc_val_aug
+        elif self.dataset == 'cityscapes':
+            self.aug = cityscapes_val_aug
 
     def show_config(self):
         print('\n' + '-' * 30 + f'{self.mode} cfg' + '-' * 30)
