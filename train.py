@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Training script for DLA Semantic S
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='voc2012', help='The dataset for training.')
 parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
-parser.add_argument('--epoch_num', type=int, default=100, help='Number of epochs to train.')
+parser.add_argument('--epoch_num', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
@@ -34,7 +34,8 @@ cfg.show_config()
 torch.backends.cudnn.benchmark = True
 
 train_dataset = Seg_dataset(cfg)
-train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8, pin_memory=True)
+train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8,
+                               pin_memory=True, drop_last=True)
 
 model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
 
@@ -59,15 +60,18 @@ epoch_size = int(len(train_dataset) / cfg.bs)
 writer = SummaryWriter(f'tensorboard_log/{cfg.dataset}_{cfg.model}_{cfg.lr}')
 
 for epoch in range(resume_epoch, cfg.epoch_num):
-    if cfg.optim == 'sgd':
-        lr = adjust_lr(cfg, optimizer, epoch)
-    else:
-        lr = 0.
+    # if cfg.optim == 'sgd':
+    #     lr = adjust_lr(cfg, optimizer, epoch)
+    # else:
+    #     lr = 0.
 
     for i, (data_tuple, _) in enumerate(train_loader):
+        cur_iter = epoch * epoch_size + i + 1
+        lr = adjust_lr_iter(cfg, optimizer, cur_iter, epoch_size)
+
         img = data_tuple[0].cuda().detach()
         target = data_tuple[1].cuda().detach()
-        print(img.shape, target.shape)
+
         torch.cuda.synchronize()
         forward_start = time.time()
 

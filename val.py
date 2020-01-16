@@ -7,7 +7,7 @@ from dataset import Seg_dataset
 import argparse
 from dla_up import DLASeg
 from config import Config
-from utils import fast_hist, per_class_iou
+from utils import confusion_matrix, per_class_iou
 import pdb
 
 parser = argparse.ArgumentParser(description='Validation script for DLA Semantic Segmentation.')
@@ -35,11 +35,11 @@ def validate(model, cfg):
             pred = torch.max(output, 1)[1].cpu().numpy().astype('int32')
             label = data_tuple[1].numpy().astype('int32')
 
-            hist += fast_hist(pred.flatten(), label.flatten(), cfg.class_num)
-            miou = round(np.nanmean(per_class_iou(hist)) * 100, 2)
+            hist += confusion_matrix(pred.flatten(), label.flatten(), cfg.class_num)
+            ious = per_class_iou(hist) * 100
+            miou = round(np.nanmean(ious), 2)
             print(f'\rBatch: {i + 1}/{total_batch}, mIOU: {miou:.2f}', end='')
 
-    ious = per_class_iou(hist) * 100
     print('\nPer class iou:')
     for i, iou in enumerate(ious):
         print(f'{i}: {iou:.2f}')
