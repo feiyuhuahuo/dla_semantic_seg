@@ -15,7 +15,7 @@ class Seg_dataset(data.Dataset):
             self.label_imgs = glob.glob(f'{cfg.data_root}/label_imgs/{cfg.mode}/*.png')
             self.label_imgs.sort()
         else:
-            self.original_imgs = glob.glob('images/*')
+            self.original_imgs = glob.glob(f'{cfg.data_root}/original_imgs/Val/*.jpg')
             self.original_imgs.sort()
 
         print('Dataset initialized.')

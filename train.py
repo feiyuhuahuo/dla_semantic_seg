@@ -106,7 +106,7 @@ for epoch in range(resume_epoch, cfg.epoch_num):
     writer.add_scalar('loss', loss, global_step=epoch)
 
     if epoch % cfg.val_interval == 0 and epoch != resume_epoch:
-        save_name = f'{cfg.dataset}_{cfg.model}_{epoch}_{cfg.lr}.pth'
+        save_name = f'{cfg.model}_{epoch}_{cfg.lr}.pth'
         torch.save(model.state_dict(), f'weights/{save_name}')
         print(f'Model saved as: {save_name}, begin validating.')
 

@@ -16,11 +16,11 @@ if not os.path.exists('results'):
 if not os.path.exists('tensorboard_log'):
     os.mkdir('tensorboard_log')
 
-CITYSCAPE_PALLETE = np.array([[128, 64, 128], [244, 35, 232], [70, 70, 70], [102, 102, 156],
-                              [190, 153, 153], [153, 153, 153], [250, 170, 30], [220, 220, 0],
-                              [107, 142, 35], [152, 251, 152], [70, 130, 180], [220, 20, 60],
-                              [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100],
-                              [0, 80, 100], [0, 0, 230], [119, 11, 32], [0, 0, 0]], dtype=np.uint8)
+PALLETE = np.array([[255, 255, 255], [244, 35, 232], [70, 70, 70], [102, 102, 156],
+                    [190, 153, 153], [153, 153, 153], [250, 170, 30], [220, 220, 0],
+                    [107, 142, 35], [152, 251, 152], [70, 130, 180], [220, 20, 60],
+                    [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100], [0, 80, 100],
+                    [0, 0, 230], [119, 11, 32], [20, 50, 170], [38, 19, 106]], dtype=np.uint8)
 
 voc_train_aug = transforms.Compose([transforms.RandomScale((12, 22)),
                                     transforms.FixCrop(pad_size=22 * 32, crop_size=512),
@@ -33,6 +33,10 @@ voc_train_aug = transforms.Compose([transforms.RandomScale((12, 22)),
 voc_val_aug = transforms.Compose([transforms.PadIfNeeded(pad_to=512),
                                   transforms.Normalize(),
                                   transforms.ToTensor()])
+
+voc_detect_aug = transforms.Compose([transforms.NearestResize(),
+                                   transforms.Normalize(),
+                                   transforms.ToTensor()])
 
 cityscapes_train_aug = transforms.Compose([transforms.RandomScale((24, 40)),
                                            transforms.RandomCrop((10, 22)),
@@ -64,6 +68,8 @@ class Config:
                 self.decay = 0.0001
             elif self.mode == 'Val':
                 self.aug = voc_val_aug
+            elif self.mode == 'Detect':
+                self.aug = voc_detect_aug
 
         elif self.dataset == 'cityscapes':
             self.data_root = '/home/feiyu/Data/cityscapes_semantic'

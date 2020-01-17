@@ -140,17 +140,18 @@ class PadIfNeeded:
         new_h = int(img_h * ratio)
 
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-        label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
-
         pad_img = np.random.rand(self.pad_to, self.pad_to, 3) * 255
-        pad_label = np.ones((self.pad_to, self.pad_to)) * 255
         pad_img = pad_img.astype('float32')
-        pad_label = pad_label.astype('float32')
-
         pad_img[0: new_h, 0: new_w, :] = img
-        pad_label[0: new_h, 0: new_w] = label
 
-        return pad_img, pad_label
+        if label is not None:
+            label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+            pad_label = np.ones((self.pad_to, self.pad_to)) * 255
+            pad_label = pad_label.astype('float32')
+            pad_label[0: new_h, 0: new_w] = label
+            return pad_img, pad_label
+
+        return pad_img, label
 
 
 class Normalize:
@@ -212,13 +213,13 @@ class NearestResize:
 
     def __call__(self, img, label=None):
         img_h, img_w, _ = img.shape
-        assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.NearestResize'
 
         new_w = int((img_w // 32 + 1) * 32)
         new_h = int((img_h // 32 + 1) * 32)
 
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-        label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+        if label is not None:
+            label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
         return img, label
 

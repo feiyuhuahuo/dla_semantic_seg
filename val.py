@@ -12,6 +12,7 @@ import pdb
 
 parser = argparse.ArgumentParser(description='Validation script for DLA Semantic Segmentation.')
 parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')
+parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='voc2012', help='The dataset for validation.')
 parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
@@ -31,10 +32,10 @@ def validate(model, cfg):
         for i, (data_tuple, _) in enumerate(val_loader):
             image = data_tuple[0].cuda().detach()
             output = model(image)
-
+            # pdb.set_trace()
             pred = torch.max(output, 1)[1].cpu().numpy().astype('int32')
             label = data_tuple[1].numpy().astype('int32')
-
+            # pdb.set_trace()
             hist += confusion_matrix(pred.flatten(), label.flatten(), cfg.class_num)
             ious = per_class_iou(hist) * 100
             miou = round(np.nanmean(ious), 2)
@@ -52,7 +53,6 @@ if __name__ == '__main__':
     cfg = Config(args=args.__dict__, mode='Val')
     cfg.show_config()
 
-    model_name = cfg.trained_model.split('_')[0]
-    model = DLASeg(model_name, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
-    model.load_state_dict(torch.load('weights/' + cfg.trained_model), strict=True)
+    model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+    model.load_state_dict(torch.load(cfg.trained_model), strict=True)
     validate(model, cfg)
