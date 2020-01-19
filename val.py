@@ -28,14 +28,14 @@ def validate(model, cfg):
 
     total_batch = int(len(val_dataset) / cfg.bs) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
+
     with torch.no_grad():
         for i, (data_tuple, _) in enumerate(val_loader):
             image = data_tuple[0].cuda().detach()
             output = model(image)
-            # pdb.set_trace()
             pred = torch.max(output, 1)[1].cpu().numpy().astype('int32')
             label = data_tuple[1].numpy().astype('int32')
-            # pdb.set_trace()
+
             hist += confusion_matrix(pred.flatten(), label.flatten(), cfg.class_num)
             ious = per_class_iou(hist) * 100
             miou = round(np.nanmean(ious), 2)
@@ -55,4 +55,5 @@ if __name__ == '__main__':
 
     model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
     model.load_state_dict(torch.load(cfg.trained_model), strict=True)
+    model.eval()
     validate(model, cfg)
