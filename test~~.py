@@ -9,7 +9,7 @@
 #
 # root = '/home/feiyu/Data/VOC2012/'
 #
-# imgs = glob.glob(f'{root}/5/*.jpg')
+# imgs = glob.glob(f'{root}/6/*.jpg')
 # imgs.sort()
 #
 # for i, img_name in enumerate(imgs):
@@ -39,9 +39,4 @@
 #             with open(f'/home/feiyu/Data/VOC2012/{k}/{k}.txt', 'a+') as f:
 #                 f.write(f'{row_name}\n')
 
-import numpy as np
-aa = (123.675, 116.280, 103.530)
-pad_img = np.ones((512, 512, 3)) + aa
-print(pad_img[:, :, 0])
-
-
+from dcn_v2 import DCN

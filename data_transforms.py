@@ -56,8 +56,7 @@ class FixCrop:
     def __call__(self, img, label=None):
         img_h, img_w, _ = img.shape
 
-        # pad_img = np.random.rand(self.pad_size, self.pad_size, 3) * 255  # pad to self.pad_size
-        pad_img = np.zeros((self.pad_size, self.pad_size, 3)) + (123.675, 116.280, 103.530)
+        pad_img = np.random.rand(self.pad_size, self.pad_size, 3) * 255  # pad to self.pad_size
         pad_label = np.ones((self.pad_size, self.pad_size)) * 255
         pad_img = pad_img.astype('float32')
         pad_label = pad_label.astype('float32')
@@ -143,7 +142,6 @@ class PadIfNeeded:
 
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
         pad_img = np.zeros((self.pad_to, self.pad_to, 3)) + (123.675, 116.280, 103.530)
-        # pad_img = np.random.rand(self.pad_to, self.pad_to, 3) * 255
         pad_img = pad_img.astype('float32')
         pad_img[0: new_h, 0: new_w, :] = img
 
@@ -164,9 +162,8 @@ class Normalize:
     def __call__(self, img, label=None):
         assert img.shape[2] == 3, 'The number of image channel is not 3 in data_transforms.Normalize.'
 
-        img = (img - (123.675, 116.280, 103.530)) / (58.395, 57.120, 57.375)
-        # for i in range(3):  # This for-loop does not influence speed.
-        #     img[:, :, i] = (img[:, :, i] - np.mean(img[:, :, i])) / np.std(img[:, :, i])
+        for i in range(3):  # This for-loop does not influence speed.
+            img[:, :, i] = (img[:, :, i] - np.mean(img[:, :, i])) / np.std(img[:, :, i])
 
         return img, label
 

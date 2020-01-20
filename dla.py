@@ -4,22 +4,28 @@ import math
 import torch
 from torch import nn
 import glob
-
-BatchNorm = nn.BatchNorm2d
+from dcn_v2 import DCN
 
 
 class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, dilation=1):
         super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3,
-                               stride=stride, padding=dilation,
-                               bias=False, dilation=dilation)
-        self.bn1 = BatchNorm(planes)
+        ##################################################
+        if stride == 2:
+            self.conv1 = DCN(inplanes, planes, kernel_size=(3, 3), stride=stride,
+                             padding=dilation, deformable_groups=1)
+        ##################################################
+        else:
+            self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3,
+                                   stride=stride, padding=dilation,
+                                   bias=False, dilation=dilation)
+
+        self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
                                stride=1, padding=dilation,
                                bias=False, dilation=dilation)
-        self.bn2 = BatchNorm(planes)
+        self.bn2 = nn.BatchNorm2d(planes)
         self.stride = stride
 
     def forward(self, x, residual=None):
@@ -48,14 +54,14 @@ class Bottleneck(nn.Module):
         bottle_planes = planes // expansion
         self.conv1 = nn.Conv2d(inplanes, bottle_planes,
                                kernel_size=1, bias=False)
-        self.bn1 = BatchNorm(bottle_planes)
+        self.bn1 = nn.BatchNorm2d(bottle_planes)
         self.conv2 = nn.Conv2d(bottle_planes, bottle_planes, kernel_size=3,
                                stride=stride, padding=dilation,
                                bias=False, dilation=dilation)
-        self.bn2 = BatchNorm(bottle_planes)
+        self.bn2 = nn.BatchNorm2d(bottle_planes)
         self.conv3 = nn.Conv2d(bottle_planes, planes,
                                kernel_size=1, bias=False)
-        self.bn3 = BatchNorm(planes)
+        self.bn3 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.stride = stride
 
@@ -92,14 +98,14 @@ class BottleneckX(nn.Module):
         bottle_planes = planes * cardinality // 32
         self.conv1 = nn.Conv2d(inplanes, bottle_planes,
                                kernel_size=1, bias=False)
-        self.bn1 = BatchNorm(bottle_planes)
+        self.bn1 = nn.BatchNorm2d(bottle_planes)
         self.conv2 = nn.Conv2d(bottle_planes, bottle_planes, kernel_size=3,
                                stride=stride, padding=dilation, bias=False,
                                dilation=dilation, groups=cardinality)
-        self.bn2 = BatchNorm(bottle_planes)
+        self.bn2 = nn.BatchNorm2d(bottle_planes)
         self.conv3 = nn.Conv2d(bottle_planes, planes,
                                kernel_size=1, bias=False)
-        self.bn3 = BatchNorm(planes)
+        self.bn3 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.stride = stride
 
@@ -130,7 +136,7 @@ class Root(nn.Module):
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
                               stride=1, bias=False, padding=(kernel_size - 1) // 2)
 
-        self.bn = BatchNorm(out_channels)
+        self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
 
@@ -179,7 +185,7 @@ class Tree(nn.Module):
         if in_channels != out_channels:
             self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels,
                                                    kernel_size=1, stride=1, bias=False),
-                                         BatchNorm(out_channels))
+                                         nn.BatchNorm2d(out_channels))
 
     def forward(self, x, residual=None, children=None):
         children = [] if children is None else children
@@ -203,11 +209,11 @@ class Tree(nn.Module):
 
 class DLA(nn.Module):
     def __init__(self, levels, channels, num_classes=1000, block=BasicBlock, residual_root=False):
-        super(DLA, self).__init__()
+        super().__init__()
         self.channels = channels
         self.num_classes = num_classes
         self.base_layer = nn.Sequential(nn.Conv2d(3, channels[0], kernel_size=7, stride=1, padding=3, bias=False),
-                                        BatchNorm(channels[0]),
+                                        nn.BatchNorm2d(channels[0]),
                                         nn.ReLU(inplace=True))
 
         self.level0 = self._make_conv_level(channels[0], channels[0], levels[0])
@@ -229,7 +235,7 @@ class DLA(nn.Module):
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, BatchNorm):
+            elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -240,7 +246,7 @@ class DLA(nn.Module):
             modules.extend([nn.Conv2d(inplanes, planes, kernel_size=3,
                                       stride=stride if i == 0 else 1,
                                       padding=dilation, bias=False, dilation=dilation),
-                            BatchNorm(planes),
+                            nn.BatchNorm2d(planes),
                             nn.ReLU(inplace=True)])
             inplanes = planes
         return nn.Sequential(*modules)
