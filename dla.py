@@ -4,7 +4,7 @@ import math
 import torch
 from torch import nn
 import glob
-from dcn_v2 import DCN
+from DCNv2.dcn_v2 import DCN
 
 
 class BasicBlock(nn.Module):

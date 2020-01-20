@@ -2,7 +2,7 @@ import math
 import numpy as np
 import torch
 from torch import nn
-import pdb
+from DCNv2.dcn_v2 import DCN
 import dla
 
 
@@ -51,10 +51,18 @@ class IDAUp(nn.Module):
 
         for i in range(1, len(channels)):  # 2 for common node, (i + 1) for nested IDAup node.
             C_in = out_dim * (i + 1) if self.nested else out_dim * 2
-            node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
-                                           padding=node_kernel // 2, bias=False),
-                                 nn.BatchNorm2d(out_dim),
-                                 nn.ReLU(inplace=True))
+            ##############################################################
+            if i >= 2:
+                node = nn.Sequential(DCN(C_in, out_dim, kernel_size=node_kernel, stride=1,
+                                         padding=node_kernel // 2, deformable_groups=1),
+                                     nn.BatchNorm2d(out_dim),
+                                     nn.ReLU(inplace=True))
+            ##############################################################
+            else:
+                node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
+                                               padding=node_kernel // 2, bias=False),
+                                     nn.BatchNorm2d(out_dim),
+                                     nn.ReLU(inplace=True))
             setattr(self, 'node_' + str(i), node)
 
         for m in self.modules():
