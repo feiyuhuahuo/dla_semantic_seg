@@ -146,7 +146,7 @@ class Root(nn.Module):
 
 class Tree(nn.Module):
     def __init__(self, levels, block, in_channels, out_channels, stride=1,
-                 level_root=False, root_dim=0, root_kernel_size=3,
+                 level_root=False, root_dim=0, root_kernel_size=1,
                  dilation=1, root_residual=False):
         super().__init__()
         if root_dim == 0:
@@ -176,8 +176,8 @@ class Tree(nn.Module):
             self.downsample = nn.MaxPool2d(stride, stride=stride)
 
         if in_channels != out_channels:
-            self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3,
-                                                   stride=1, padding=1, bias=False),
+            self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=1,
+                                                   stride=1, bias=False),
                                          nn.BatchNorm2d(out_channels))
 
     def forward(self, x, residual=None, children=None):
@@ -256,18 +256,18 @@ class DLA(nn.Module):
     def load_pretrained_model(self, name):
         weights = glob.glob(f'weights/{name}-*')[0]
         state_dict = torch.load(weights)
-        state_dict.pop('level2.root.conv.weight')
-        state_dict.pop('level2.project.0.weight')
-        state_dict.pop('level3.tree1.root.conv.weight')
-        state_dict.pop('level3.tree1.project.0.weight')
-        state_dict.pop('level3.tree2.root.conv.weight')
-        state_dict.pop('level3.project.0.weight')
-        state_dict.pop('level4.tree1.root.conv.weight')
-        state_dict.pop('level4.tree1.project.0.weight')
-        state_dict.pop('level4.tree2.root.conv.weight')
-        state_dict.pop('level4.project.0.weight')
-        state_dict.pop('level5.root.conv.weight')
-        state_dict.pop('level5.project.0.weight')
+        # state_dict.pop('level2.root.conv.weight')
+        # state_dict.pop('level2.project.0.weight')
+        # state_dict.pop('level3.tree1.root.conv.weight')
+        # state_dict.pop('level3.tree1.project.0.weight')
+        # state_dict.pop('level3.tree2.root.conv.weight')
+        # state_dict.pop('level3.project.0.weight')
+        # state_dict.pop('level4.tree1.root.conv.weight')
+        # state_dict.pop('level4.tree1.project.0.weight')
+        # state_dict.pop('level4.tree2.root.conv.weight')
+        # state_dict.pop('level4.project.0.weight')
+        # state_dict.pop('level5.root.conv.weight')
+        # state_dict.pop('level5.project.0.weight')
         self.load_state_dict(state_dict, strict=False)
         print(f'{weights} loaded.')
 
