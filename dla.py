@@ -4,21 +4,14 @@ import math
 import torch
 from torch import nn
 import glob
-from DCNv2.dcn_v2 import DCN
 
 
 class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, dilation=1):
-        super(BasicBlock, self).__init__()
-        ##################################################
-        if stride == 2:
-            self.conv1 = DCN(inplanes, planes, kernel_size=(3, 3), stride=stride,
-                             padding=dilation, deformable_groups=1)
-        ##################################################
-        else:
-            self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3,
-                                   stride=stride, padding=dilation,
-                                   bias=False, dilation=dilation)
+        super().__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3,
+                               stride=stride, padding=dilation,
+                               bias=False, dilation=dilation)
 
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
@@ -49,7 +42,7 @@ class Bottleneck(nn.Module):
     expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, dilation=1):
-        super(Bottleneck, self).__init__()
+        super().__init__()
         expansion = Bottleneck.expansion
         bottle_planes = planes // expansion
         self.conv1 = nn.Conv2d(inplanes, bottle_planes,
@@ -91,7 +84,7 @@ class BottleneckX(nn.Module):
     cardinality = 32
 
     def __init__(self, inplanes, planes, stride=1, dilation=1):
-        super(BottleneckX, self).__init__()
+        super().__init__()
         cardinality = BottleneckX.cardinality
         # dim = int(math.floor(planes * (BottleneckV5.expansion / 64.0)))
         # bottle_planes = dim * cardinality
@@ -132,7 +125,7 @@ class BottleneckX(nn.Module):
 
 class Root(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, residual):
-        super(Root, self).__init__()
+        super().__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
                               stride=1, bias=False, padding=(kernel_size - 1) // 2)
 
@@ -153,9 +146,9 @@ class Root(nn.Module):
 
 class Tree(nn.Module):
     def __init__(self, levels, block, in_channels, out_channels, stride=1,
-                 level_root=False, root_dim=0, root_kernel_size=1,
+                 level_root=False, root_dim=0, root_kernel_size=3,
                  dilation=1, root_residual=False):
-        super(Tree, self).__init__()
+        super().__init__()
         if root_dim == 0:
             root_dim = 2 * out_channels
         if level_root:
@@ -183,8 +176,8 @@ class Tree(nn.Module):
             self.downsample = nn.MaxPool2d(stride, stride=stride)
 
         if in_channels != out_channels:
-            self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels,
-                                                   kernel_size=1, stride=1, bias=False),
+            self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3,
+                                                   stride=1, padding=1, bias=False),
                                          nn.BatchNorm2d(out_channels))
 
     def forward(self, x, residual=None, children=None):
@@ -263,6 +256,18 @@ class DLA(nn.Module):
     def load_pretrained_model(self, name):
         weights = glob.glob(f'weights/{name}-*')[0]
         state_dict = torch.load(weights)
+        state_dict.pop('level2.root.conv.weight')
+        state_dict.pop('level2.project.0.weight')
+        state_dict.pop('level3.tree1.root.conv.weight')
+        state_dict.pop('level3.tree1.project.0.weight')
+        state_dict.pop('level3.tree2.root.conv.weight')
+        state_dict.pop('level3.project.0.weight')
+        state_dict.pop('level4.tree1.root.conv.weight')
+        state_dict.pop('level4.tree1.project.0.weight')
+        state_dict.pop('level4.tree2.root.conv.weight')
+        state_dict.pop('level4.project.0.weight')
+        state_dict.pop('level5.root.conv.weight')
+        state_dict.pop('level5.project.0.weight')
         self.load_state_dict(state_dict, strict=False)
         print(f'{weights} loaded.')
 

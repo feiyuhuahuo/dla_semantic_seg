@@ -36,7 +36,7 @@ class IDAUp(nn.Module):
             if c == out_dim:
                 proj = Identity()
             else:
-                proj = nn.Sequential(nn.Conv2d(c, out_dim, kernel_size=1, stride=1, bias=False),
+                proj = nn.Sequential(nn.Conv2d(c, out_dim, kernel_size=3, stride=1, padding=1, bias=False),
                                      nn.BatchNorm2d(out_dim),
                                      nn.ReLU(inplace=True))
             f = int(up_factors[i])
@@ -52,17 +52,17 @@ class IDAUp(nn.Module):
         for i in range(1, len(channels)):  # 2 for common node, (i + 1) for nested IDAup node.
             C_in = out_dim * (i + 1) if self.nested else out_dim * 2
             ##############################################################
-            if i >= 2:
-                node = nn.Sequential(DCN(C_in, out_dim, kernel_size=node_kernel, stride=1,
-                                         padding=node_kernel // 2, deformable_groups=1),
-                                     nn.BatchNorm2d(out_dim),
-                                     nn.ReLU(inplace=True))
+            # if i >= 2:
+            #     node = nn.Sequential(DCN(C_in, out_dim, kernel_size=node_kernel, stride=1,
+            #                              padding=node_kernel // 2, deformable_groups=1),
+            #                          nn.BatchNorm2d(out_dim),
+            #                          nn.ReLU(inplace=True))
             ##############################################################
-            else:
-                node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
-                                               padding=node_kernel // 2, bias=False),
-                                     nn.BatchNorm2d(out_dim),
-                                     nn.ReLU(inplace=True))
+            # else:
+            node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
+                                           padding=node_kernel // 2, bias=False),
+                                 nn.BatchNorm2d(out_dim),
+                                 nn.ReLU(inplace=True))
             setattr(self, 'node_' + str(i), node)
 
         for m in self.modules():
@@ -140,7 +140,7 @@ class DLASeg(nn.Module):
         scales = [2 ** i for i in range(len(channels[self.first_level:]))]
 
         self.dla_up = DLAUp(channels[self.first_level:], scales=scales)  # [32, 64, 128, 256, 512], [1, 2, 4, 8, 16]
-        self.fc = nn.Sequential(nn.Conv2d(channels[self.first_level], classes, kernel_size=1, stride=1))
+        self.fc = nn.Sequential(nn.Conv2d(channels[self.first_level], classes, kernel_size=3, stride=1, padding=1))
 
         up_factor = 2 ** self.first_level
         if up_factor > 1:
