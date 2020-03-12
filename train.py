@@ -15,7 +15,7 @@ import pdb
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
-parser.add_argument('--dataset', type=str, default='voc2012', help='The dataset for training.')
+parser.add_argument('--dataset', type=str, default='buildings', help='The dataset for training.')
 parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
 parser.add_argument('--epoch_num', type=int, default=10000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
@@ -35,7 +35,7 @@ torch.backends.cudnn.benchmark = True
 
 train_dataset = building_dataset(cfg)
 train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8,
-                               pin_memory=True, drop_last=True)
+                               pin_memory=True, drop_last=False)
 
 model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
 
