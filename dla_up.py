@@ -49,7 +49,7 @@ class IDAUp(nn.Module):
             setattr(self, 'proj_' + str(i), proj)
             setattr(self, 'up_' + str(i), up)
 
-        for i in range(1, len(channels)):  # 2 for common node, (i + 1) for nested IDAup node.
+        for i in range(1, len(channels)):
             C_in = out_dim * (i + 1) if self.nested else out_dim * 2
             ##############################################################
             # if i >= 2:

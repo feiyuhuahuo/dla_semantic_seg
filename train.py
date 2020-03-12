@@ -3,7 +3,7 @@ from tensorboardX import SummaryWriter
 import time
 import datetime
 from val import validate
-from dataset import Seg_dataset
+from dataset import Seg_dataset, building_dataset
 import torch
 import torch.utils.data as data
 from torch import nn
@@ -16,15 +16,15 @@ import pdb
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='voc2012', help='The dataset for training.')
-parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
-parser.add_argument('--epoch_num', type=int, default=50, help='Number of epochs to train.')
+parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
+parser.add_argument('--epoch_num', type=int, default=10000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                     help='The downsampling ratio of the IDA network output, '
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
-parser.add_argument('--val_interval', type=int, default=2, help='The validation interval during training.')
+parser.add_argument('--val_interval', type=int, default=-1, help='The validation interval during training.')
 parser.add_argument('--optim', type=str, default='sgd', help='The training optimizer.')
 args = parser.parse_args()
 
@@ -33,7 +33,7 @@ cfg.show_config()
 
 torch.backends.cudnn.benchmark = True
 
-train_dataset = Seg_dataset(cfg)
+train_dataset = building_dataset(cfg)
 train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8,
                                pin_memory=True, drop_last=True)
 
@@ -94,7 +94,7 @@ for epoch in range(resume_epoch, cfg.epoch_num):
             batch_time.add(iter_time)
         temp = backward_end
 
-        if i % 10 == 0 and i > 0:
+        if i > 0:
             t_data = iter_time - (backward_end - forward_start)
             t_forward = forward_end - forward_start
             t_backward = backward_end - forward_end
@@ -105,7 +105,7 @@ for epoch in range(resume_epoch, cfg.epoch_num):
 
     writer.add_scalar('loss', loss, global_step=epoch)
 
-    if epoch % cfg.val_interval == 0 and epoch != resume_epoch:
+    if cfg.val_interval > 0 and epoch % cfg.val_interval == 0 and epoch != resume_epoch:
         save_name = f'{cfg.model}_{epoch}_{cfg.lr}.pth'
         torch.save(model.state_dict(), f'weights/{save_name}')
         print(f'Model saved as: {save_name}, begin validating.')

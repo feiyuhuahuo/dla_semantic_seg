@@ -1,11 +1,3 @@
-
-## Segmentation and Boundary Prediction
-
-Segmentation and boundary prediction data format is the same as
-[DRN](https://github.com/fyu/drn#prepare-data).
-
-To use `--bn-sync`, please include `lib` in `PYTHONPATH`.
-
 Cityscapes
 
 ```
@@ -15,9 +7,4 @@ python3 segment.py train -d <data_folder> -c 19 -s 832 --arch dla102up \
     --random-color --pretrained-base imagenet
 ```
 
-
-## FAQ
-
-*How many GPUs does the program require for training?*
-
-We tested all the training on GPUs with at least 12 GB memory. We usually tried to use fewest GPUs for the batch sizes. So the actually number of required GPUs is different between models, depending on the model sizes. Some model training may require 8 GPUs, such as training `dla102up` on Cityscapes dataset.
+python train.py --model=dla34 --bs=2

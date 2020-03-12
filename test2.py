@@ -42,15 +42,17 @@
 import json
 import numpy as np
 import cv2
+import random
 
-with open('/home/feiyuhuahuo/Data/1/instance_label/2008_000251.json', 'r', encoding='utf-8') as f:
-    ss = json.load(f)
 
-aa = ss['7-3']
+img = cv2.imread('/home/feiyu/Data/building_semantic/train/imgs/3_img.tif')
 
-img = np.zeros((600, 600, 3), dtype='uint8')
-for ee in aa:
-    cv2.fillPoly(img, [np.array(ee)], (100, 175, 20))
-
-cv2.imshow('image', img)
+# aa = cv2.GaussianBlur(img, (3, 3), 0)
+# bb = cv2.GaussianBlur(img, (7, 7), 0)
+kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], np.float32)
+rr = cv2.filter2D(img, -1, kernel=kernel)
+aa = cv2.GaussianBlur(rr, (7, 7), 0)
+cv2.imshow('aa', img)
+# cv2.imshow('bb', rr)
+cv2.imshow('cc', aa)
 cv2.waitKey()
