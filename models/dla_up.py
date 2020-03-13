@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from torch import nn
 from models import dla
-from utils import config as cfg
 from DCNv2.dcn_v2 import DCN
 
 
@@ -27,7 +26,7 @@ def fill_up_weights(up):
 
 
 class IDAUp(nn.Module):
-    def __init__(self, node_kernel, out_dim, channels, up_factors):
+    def __init__(self, node_kernel, out_dim, channels, up_factors, use_dcn):
         super().__init__()
         self.channels = channels
         self.out_dim = out_dim
@@ -50,8 +49,9 @@ class IDAUp(nn.Module):
             setattr(self, 'up_' + str(i), up)
 
         for i in range(1, len(channels)):
-            C_in = out_dim * (i + 1) if self.nested else out_dim * 2
-            if cfg.use_dcn and i >= 2:
+            C_in = out_dim * 2
+
+            if use_dcn and i >= 2:
                 node = nn.Sequential(DCN(C_in, out_dim, kernel_size=node_kernel, stride=1,
                                          padding=node_kernel // 2, deformable_groups=1),
                                      nn.BatchNorm2d(out_dim),
@@ -94,7 +94,7 @@ class IDAUp(nn.Module):
 
 
 class DLAUp(nn.Module):
-    def __init__(self, channels, scales=(1, 2, 4, 8, 16), in_channels=None):
+    def __init__(self, channels, scales=(1, 2, 4, 8, 16), in_channels=None, cfg=None):
         super().__init__()
         if in_channels is None:
             in_channels = channels
@@ -105,7 +105,7 @@ class DLAUp(nn.Module):
 
         for i in range(len(channels) - 1):
             j = -i - 2
-            setattr(self, f'ida_{i}', IDAUp(3, channels[j], in_channels[j:], scales[j:] // scales[j]))
+            setattr(self, f'ida_{i}', IDAUp(3, channels[j], in_channels[j:], scales[j:] // scales[j], cfg.use_dcn))
             scales[j + 1:] = scales[j]
             in_channels[j + 1:] = [channels[j] for _ in channels[j + 1:]]
 
@@ -122,22 +122,23 @@ class DLAUp(nn.Module):
 
 
 class DLASeg(nn.Module):
-    def __init__(self, base_name, classes, down_ratio=2):
+    def __init__(self, cfg):
         super().__init__()
-        assert down_ratio in [2, 4, 8, 16]
+        assert cfg.down_ratio in [2, 4, 8, 16]
 
-        self.first_level = int(np.log2(down_ratio))
-        self.base = dla.__dict__[base_name]()
+        self.first_level = int(np.log2(cfg.down_ratio))
+        self.base = dla.__dict__[cfg.model]()
         channels = self.base.channels
         scales = [2 ** i for i in range(len(channels[self.first_level:]))]
 
-        self.dla_up = DLAUp(channels[self.first_level:], scales=scales)  # [32, 64, 128, 256, 512], [1, 2, 4, 8, 16]
-        self.fc = nn.Sequential(nn.Conv2d(channels[self.first_level], classes, kernel_size=3, stride=1, padding=1))
+        self.dla_up = DLAUp(channels[self.first_level:], scales=scales, cfg=cfg)  # [32, 64, 128, 256, 512], [1, 2, 4, 8, 16]
+        self.fc = nn.Sequential(
+            nn.Conv2d(channels[self.first_level], cfg.class_num, kernel_size=3, stride=1, padding=1))
 
         up_factor = 2 ** self.first_level
         if up_factor > 1:
-            up = nn.ConvTranspose2d(classes, classes, up_factor * 2, stride=up_factor, padding=up_factor // 2,
-                                    output_padding=0, groups=classes, bias=False)
+            up = nn.ConvTranspose2d(cfg.class_num, cfg.class_num, up_factor * 2, stride=up_factor,
+                                    padding=up_factor // 2, output_padding=0, groups=cfg.class_num, bias=False)
             fill_up_weights(up)
             up.weight.requires_grad = False
         else:

@@ -37,7 +37,7 @@ train_dataset = Seg_dataset(cfg)
 train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=0,
                                pin_memory=True, drop_last=False)
 
-model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()
+model = DLASeg(cfg).cuda()
 
 if cfg.resume:
     resume_epoch = int(cfg.resume.split('.')[0].split('_')[1]) + 1

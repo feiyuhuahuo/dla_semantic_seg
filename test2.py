@@ -45,14 +45,8 @@ import cv2
 import random
 
 
-img = cv2.imread('/home/feiyu/Data/building_semantic/train/imgs/3_img.tif')
+cv2.namedWindow('aa', cv2.WINDOW_NORMAL)
+img = cv2.imread('/home/feiyu/Data/glass/64_body_qipao_2.bmp')
 
-# aa = cv2.GaussianBlur(img, (3, 3), 0)
-# bb = cv2.GaussianBlur(img, (7, 7), 0)
-kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], np.float32)
-rr = cv2.filter2D(img, -1, kernel=kernel)
-aa = cv2.GaussianBlur(rr, (7, 7), 0)
 cv2.imshow('aa', img)
-# cv2.imshow('bb', rr)
-cv2.imshow('cc', aa)
 cv2.waitKey()
