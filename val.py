@@ -3,12 +3,11 @@
 import numpy as np
 import torch
 import torch.utils.data as data
-from dataset import Seg_dataset
+from utils.dataset import Seg_dataset
 import argparse
-from dla_up import DLASeg
-from config import Config
-from utils import confusion_matrix, per_class_iou
-import pdb
+from models.dla_up import DLASeg
+from utils.config import Config
+from utils.utils import confusion_matrix, per_class_iou
 
 parser = argparse.ArgumentParser(description='Validation script for DLA Semantic Segmentation.')
 parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')

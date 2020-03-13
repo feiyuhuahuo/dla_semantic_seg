@@ -60,14 +60,6 @@ def FixCrop(img, label):
     return img, label
 
 
-def RandomHorizontalFlip(img, label=None):
-    if random.randint((0, 1)):
-        img = cv2.flip(img, 1)
-        label = cv2.flip(label, 1)
-
-        return img, label
-
-
 def PadToSize(img, label):
     pad_h = 19 * 32
     pad_w = pad_h * 2
@@ -147,6 +139,56 @@ def nearest_resize(img):  # Keeping ratio resize to the nearest size with respec
     new_h = int((img_h // 32 + 1) * 32)
     img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
     return img
+
+
+def building_pad(img, label, crop_size):
+    pad_img = np.random.rand(crop_size, crop_size, 3) * 255
+    pad_img = pad_img.astype('float32')
+    pad_label = np.ones((crop_size, crop_size), dtype='float32') * 255
+    h, w, _ = img.shape
+
+    if max(h, w) < crop_size:
+        left = random.randint(0, crop_size - w)
+        up = random.randint(0, crop_size - h)
+
+        pad_img[up: up + h, left: left + w, :] = img
+        pad_label[up: up + h, left: left + w] = label
+
+    else:
+        if h < w:
+            left = random.randint(0, w - crop_size)
+            crop_img = img[:, left: left + crop_size, :]
+            crop_label = label[:, left: left + crop_size]
+
+            up = random.randint(0, crop_size - h)
+            pad_img[up: up + h, :, :] = crop_img
+            pad_label[up: up + h, :] = crop_label
+
+        if h > w:
+            up = random.randint(0, h - crop_size)
+            crop_img = img[up: up + crop_size, :, :]
+            crop_label = label[up: up + crop_size, :]
+
+            left = random.randint(0, crop_size - w)
+            pad_img[:, left: left + w, :] = crop_img
+            pad_label[:, left: left + w] = crop_label
+
+        if h == w:
+            print('img h == img w, exit. (building_aug.pad_to_size)')
+            exit()
+
+    return pad_img, pad_label
+
+
+def building_crop(img, label, crop_size):
+    h, w, _ = img.shape
+    left = random.randint(0, w - crop_size)
+    up = random.randint(0, h - crop_size)
+
+    crop_img = img[up: up + crop_size, left: left + crop_size, :]
+    crop_label = label[up: up + crop_size, left: left + crop_size]
+
+    return crop_img, crop_label
 
 
 def random_contrast(img):
@@ -232,6 +274,21 @@ def color_distortion(img):
     return img
 
 
+def random_flip(img, label, v_flip=False):
+    # horizontal flip
+    if random.randint(0, 1):
+        img = cv2.flip(img, 1)  # Don't use such 'image[:, ::-1]' code, may occur bugs.
+        label = cv2.flip(label, 1)
+
+    if v_flip:
+        # vertical flip
+        if random.randint(0, 1):
+            img = cv2.flip(img, 0)
+            label = cv2.flip(label, 0)
+
+    return img, label
+
+
 def random_rotate(img, label, ninty_rotation=False):
     h, w, _ = img.shape
     # slight rotation first
@@ -258,7 +315,7 @@ def direct_resize(img, label, final_size):
 def cityscapes_train_aug(img, label):
     img, label = RandomScale(img, label, (24, 40))
     img, label = RandomCrop(img, label, (10, 22))
-    img, label = RandomHorizontalFlip(img, label)
+    img, label = random_flip(img, label, v_flip=False)
     img = color_distortion(img)  # color_distortion() should be in front of random_rotate()
     img, label = random_rotate(img, label, ninty_rotation=False)
     img, label = PadToSize(img, label)
@@ -279,7 +336,7 @@ def cityscapes_val_aug(img, label):
 def voc_train_aug(img, label):
     img, label = RandomScale(img, label, (12, 22))
     img, label = FixCrop(img, label)
-    img, label = RandomHorizontalFlip(img, label)
+    img, label = random_flip(img, label, v_flip=False)
     img = color_distortion(img)
     img, label = random_rotate(img, label, ninty_rotation=False)
     img = normalize(img)
@@ -304,18 +361,18 @@ def voc_detect_aug(img):
     return img
 
 
-def train_aug(img, label):
+def building_train_aug(img, label):
     crop_size = random.randint(16, 32) * 32  # Crop size must be multiple times of 32 because of dla.
     size_min = min(img.shape[0:2])
 
     if size_min < crop_size:
-        img, label = pad_to_size(img, label, crop_size)
+        img, label = building_pad(img, label, crop_size)
     if size_min > crop_size:
-        img, label = random_crop(img, label, crop_size)
+        img, label = building_crop(img, label, crop_size)
 
     img = color_distortion(img)
-    img, label = random_flip(img, label)
-    img, label = random_rotate(img, label)
+    img, label = random_flip(img, label, v_flip=True)
+    img, label = random_rotate(img, label, ninty_rotation=True)
     img, label = direct_resize(img, label, 768)
     # img = img.astype('uint8')
     # label = label.astype('uint8') * 100

@@ -25,20 +25,6 @@ class AverageMeter(object):
         return sum(self.time_list) / len(self.time_list)
 
 
-def adjust_lr(cfg, optimizer, epoch):
-    if cfg.lr_mode == 'step':
-        lr = cfg.lr * (0.1 ** (epoch // cfg.step))
-    elif cfg.lr_mode == 'poly':
-        lr = cfg.lr * (1 - epoch / cfg.epoch_num) ** 0.9
-    else:
-        raise ValueError(f'Unknown lr mode: {cfg.lr_mode}.')
-
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-    return lr
-
-
 def adjust_lr_iter(cfg, optimizer, cur_iter, epoch_size):
     lr = cfg.lr * (1 - cur_iter / (cfg.epoch_num * epoch_size)) ** 0.9
 

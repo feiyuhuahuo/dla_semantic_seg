@@ -2,10 +2,10 @@
 # -*- coding:utf-8 -*-
 import torch
 import argparse
-from dataset import Seg_dataset
+from utils.dataset import Seg_dataset
 import cv2
-from config import Config, PALLETE
-from dla_up import DLASeg
+from utils.config import Config, PALLETE
+from models.dla_up import DLASeg
 
 parser = argparse.ArgumentParser(description='Detection script for DLA Semantic Segmentation.')
 parser.add_argument('--trained_model', type=str, default='', help='Path to the trained model')

@@ -3,15 +3,14 @@ from tensorboardX import SummaryWriter
 import time
 import datetime
 from val import validate
-from dataset import Seg_dataset, building_dataset
+from utils.dataset import building_dataset
 import torch
 import torch.utils.data as data
 from torch import nn
-from utils import *
-from dla_up import DLASeg
-from config import Config
-from radam import RAdam
-import pdb
+from utils.utils import *
+from models.dla_up import DLASeg
+from utils.config import Config
+from utils.radam import RAdam
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
@@ -60,11 +59,6 @@ epoch_size = int(len(train_dataset) / cfg.bs)
 writer = SummaryWriter(f'tensorboard_log/{cfg.dataset}_{cfg.model}_{cfg.lr}')
 
 for epoch in range(resume_epoch, cfg.epoch_num):
-    # if cfg.optim == 'sgd':
-    #     lr = adjust_lr(cfg, optimizer, epoch)
-    # else:
-    #     lr = 0.
-
     for i, (data_tuple, _) in enumerate(train_loader):
         cur_iter = epoch * epoch_size + i + 1
         lr = adjust_lr_iter(cfg, optimizer, cur_iter, epoch_size)

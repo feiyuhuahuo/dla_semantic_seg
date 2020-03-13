@@ -2,8 +2,7 @@ import math
 import numpy as np
 import torch
 from torch import nn
-from DCNv2.dcn_v2 import DCN
-import dla
+from models import dla
 
 
 class Identity(nn.Module):

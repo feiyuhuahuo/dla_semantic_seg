@@ -2,16 +2,17 @@
 # -*- coding:utf-8 -*-
 import os
 import numpy as np
-from data_transforms import voc_train_aug, voc_val_aug, voc_detect_aug
-from data_transforms import cityscapes_train_aug, cityscapes_val_aug
+from utils.data_transforms import voc_train_aug, voc_val_aug
+from utils.data_transforms import cityscapes_train_aug, cityscapes_val_aug
+from utils.data_transforms import building_train_aug
 
 PASCAL_CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
                   'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
 
-os.makedirs('weights', exist_ok=True)
-os.makedirs('images', exist_ok=True)
-os.makedirs('results', exist_ok=True)
-os.makedirs('tensorboard_log', exist_ok=True)
+os.makedirs('../weights', exist_ok=True)
+os.makedirs('../images', exist_ok=True)
+os.makedirs('../results', exist_ok=True)
+os.makedirs('../tensorboard_log', exist_ok=True)
 
 
 PALLETE = np.array([[255, 255, 255], [244, 35, 232], [70, 70, 70], [102, 102, 156],
@@ -28,25 +29,29 @@ class Config:
         for k, v in args.items():
             self.__setattr__(k, v)
 
-        self.momentum = 0.9
-        self.decay = 0.0001
+        if self.mode == 'Train':
+            self.momentum = 0.9
+            self.decay = 0.0001
 
         if self.dataset == 'voc2012':
-            self.data_root = '/home/feiyu/Data/VOC2012'
             self.class_num = 21
+            self.aug = voc_train_aug if self.mode == 'Train' else voc_val_aug
 
         if self.dataset == 'cityscapes':
-            self.data_root = '/home/feiyu/Data/cityscapes_semantic'
             self.class_num = 19
+            self.aug = cityscapes_train_aug if self.mode == 'Train' else cityscapes_val_aug
 
         if self.dataset == 'buildings':
             self.class_num = 2
+            self.aug = building_train_aug if self.mode == 'Train' else None
 
     def to_val_aug(self):
         if self.dataset == 'voc2012':
             self.aug = voc_val_aug
         elif self.dataset == 'cityscapes':
             self.aug = cityscapes_val_aug
+        elif self.dataset == 'buildings':
+            self.aug = None
 
     def show_config(self):
         print('\n' + '-' * 30 + f'{self.mode} cfg' + '-' * 30)
