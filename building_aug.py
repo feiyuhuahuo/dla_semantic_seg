@@ -190,6 +190,7 @@ def to_tensor(img, label=None):
 
 
 def train_aug(img, label):
+    assert img.shape[0:2] == label.shape, ''
     crop_size = random.randint(16, 32) * 32  # Crop size must be multiple times of 32 because of dla.
     size_min = min(img.shape[0:2])
 

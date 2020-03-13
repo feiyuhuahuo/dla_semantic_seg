@@ -3,10 +3,10 @@ from tensorboardX import SummaryWriter
 import time
 import datetime
 from val import validate
-from utils.dataset import building_dataset
 import torch
 import torch.utils.data as data
 from torch import nn
+from utils.dataset import Seg_dataset
 from utils.utils import *
 from models.dla_up import DLASeg
 from utils.config import Config
@@ -23,6 +23,7 @@ parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                     help='The downsampling ratio of the IDA network output, '
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
+parser.add_argument('--use_dcn', default=False, action='store_true', help='Whether to use DCN.')
 parser.add_argument('--val_interval', type=int, default=-1, help='The validation interval during training.')
 parser.add_argument('--optim', type=str, default='sgd', help='The training optimizer.')
 args = parser.parse_args()
@@ -32,8 +33,8 @@ cfg.show_config()
 
 torch.backends.cudnn.benchmark = True
 
-train_dataset = building_dataset(cfg)
-train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8,
+train_dataset = Seg_dataset(cfg)
+train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=0,
                                pin_memory=True, drop_last=False)
 
 model = DLASeg(cfg.model, cfg.class_num, down_ratio=cfg.down_ratio).cuda()

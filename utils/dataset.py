@@ -16,8 +16,8 @@ class Seg_dataset(data.Dataset):
             self.original_imgs = glob.glob(f'/home/feiyu/Data/building_semantic/original_imgs/{cfg.mode}/*.tif')
             self.label_imgs = glob.glob(f'/home/feiyu/Data/building_semantic/label_imgs/{cfg.mode}/*.tif')
 
-            self.original_imgs.sort()
-            self.label_imgs.sort()
+        self.original_imgs.sort()
+        self.label_imgs.sort()
 
         print('Dataset initialized.')
 

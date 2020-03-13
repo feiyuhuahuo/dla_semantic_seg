@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from torch import nn
 from models import dla
+from utils import config as cfg
+from DCNv2.dcn_v2 import DCN
 
 
 class Identity(nn.Module):
@@ -29,7 +31,6 @@ class IDAUp(nn.Module):
         super().__init__()
         self.channels = channels
         self.out_dim = out_dim
-        self.nested = False
 
         for i, c in enumerate(channels):
             if c == out_dim:
@@ -50,18 +51,16 @@ class IDAUp(nn.Module):
 
         for i in range(1, len(channels)):
             C_in = out_dim * (i + 1) if self.nested else out_dim * 2
-            ##############################################################
-            # if i >= 2:
-            #     node = nn.Sequential(DCN(C_in, out_dim, kernel_size=node_kernel, stride=1,
-            #                              padding=node_kernel // 2, deformable_groups=1),
-            #                          nn.BatchNorm2d(out_dim),
-            #                          nn.ReLU(inplace=True))
-            ##############################################################
-            # else:
-            node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
-                                           padding=node_kernel // 2, bias=False),
-                                 nn.BatchNorm2d(out_dim),
-                                 nn.ReLU(inplace=True))
+            if cfg.use_dcn and i >= 2:
+                node = nn.Sequential(DCN(C_in, out_dim, kernel_size=node_kernel, stride=1,
+                                         padding=node_kernel // 2, deformable_groups=1),
+                                     nn.BatchNorm2d(out_dim),
+                                     nn.ReLU(inplace=True))
+            else:
+                node = nn.Sequential(nn.Conv2d(C_in, out_dim, kernel_size=node_kernel, stride=1,
+                                               padding=node_kernel // 2, bias=False),
+                                     nn.BatchNorm2d(out_dim),
+                                     nn.ReLU(inplace=True))
             setattr(self, 'node_' + str(i), node)
 
         for m in self.modules():
@@ -86,13 +85,7 @@ class IDAUp(nn.Module):
         skip_cat = [x]
         for i in range(1, len(layers)):
             node = getattr(self, f'node_{i}')
-
-            if i >= 2 and self.nested:  # Nested IDAup implementation.
-                additional_in = skip_cat[:i - 1]
-                additional_in.reverse()
-                x = node(torch.cat([x, layers[i]] + additional_in, 1))
-            else:
-                x = node(torch.cat((x, layers[i]), 1))
+            x = node(torch.cat((x, layers[i]), 1))
 
             skip_cat.append(x)
             y.append(x)

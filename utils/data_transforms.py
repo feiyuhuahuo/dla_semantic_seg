@@ -280,11 +280,10 @@ def random_flip(img, label, v_flip=False):
         img = cv2.flip(img, 1)  # Don't use such 'image[:, ::-1]' code, may occur bugs.
         label = cv2.flip(label, 1)
 
-    if v_flip:
-        # vertical flip
-        if random.randint(0, 1):
-            img = cv2.flip(img, 0)
-            label = cv2.flip(label, 0)
+    # vertical flip
+    if v_flip and random.randint(0, 1):
+        img = cv2.flip(img, 0)
+        label = cv2.flip(label, 0)
 
     return img, label
 
@@ -362,6 +361,7 @@ def voc_detect_aug(img):
 
 
 def building_train_aug(img, label):
+    assert img.shape[:2] == label.shape[:2], 'img.shape != label.shape in data_transforms.building_train_aug'
     crop_size = random.randint(16, 32) * 32  # Crop size must be multiple times of 32 because of dla.
     size_min = min(img.shape[0:2])
 
