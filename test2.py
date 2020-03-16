@@ -45,8 +45,5 @@ import cv2
 import random
 
 
-cv2.namedWindow('aa', cv2.WINDOW_NORMAL)
-img = cv2.imread('/home/feiyu/Data/glass/64_body_qipao_2.bmp')
-
-cv2.imshow('aa', img)
-cv2.waitKey()
+crop = random.randint(0, 2.5)
+print(crop)

@@ -24,7 +24,7 @@ parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                          'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
 parser.add_argument('--use_dcn', default=False, action='store_true', help='Whether to use DCN.')
-parser.add_argument('--val_interval', type=int, default=50, help='The validation interval during training.')
+parser.add_argument('--val_interval', type=int, default=500, help='The validation interval during training.')
 parser.add_argument('--optim', type=str, default='sgd', help='The training optimizer.')
 args = parser.parse_args()
 
