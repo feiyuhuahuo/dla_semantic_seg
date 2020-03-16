@@ -23,9 +23,9 @@ def validate(model, cfg):
     torch.backends.cudnn.benchmark = True
 
     val_dataset = Seg_dataset(cfg)
-    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
+    val_loader = data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)
 
-    total_batch = int(len(val_dataset) / cfg.bs) + 1
+    total_batch = int(len(val_dataset)) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
 
     with torch.no_grad():

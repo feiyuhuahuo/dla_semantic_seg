@@ -133,11 +133,18 @@ def SpecifiedResize(img, label):  # Keeping ratio resize with a specified length
     return img, label
 
 
-def nearest_resize(img):  # Keeping ratio resize to the nearest size with respect to the image size.
+def nearest_resize(img, label=None):  # Keeping ratio resize to the nearest size with respect to the image size.
+    if label is not None:
+        assert img.shape[0:2] == label.shape[0:2], 'shape mismatch in data_transforms.nearest_resize'
+
     img_h, img_w, _ = img.shape
     new_w = int((img_w // 32 + 1) * 32)
     new_h = int((img_h // 32 + 1) * 32)
     img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    if label is not None:
+        label = cv2.resize(label, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+        return img, label
+
     return img
 
 
@@ -380,6 +387,14 @@ def building_train_aug(img, label):
     # cv2.imshow('bb', label)
     # cv2.waitKey()
     # exit()
+    img = normalize(img)
+    img, label = to_tensor(img, label)
+
+    return img, label
+
+
+def building_val_aug(img, label):
+    img, label = nearest_resize(img, label)
     img = normalize(img)
     img, label = to_tensor(img, label)
 

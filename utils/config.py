@@ -4,16 +4,15 @@ import os
 import numpy as np
 from utils.data_transforms import voc_train_aug, voc_val_aug
 from utils.data_transforms import cityscapes_train_aug, cityscapes_val_aug
-from utils.data_transforms import building_train_aug
+from utils.data_transforms import building_train_aug, building_val_aug
 
 PASCAL_CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
                   'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
 
-os.makedirs('../weights', exist_ok=True)
-os.makedirs('../images', exist_ok=True)
-os.makedirs('../results', exist_ok=True)
-os.makedirs('../tensorboard_log', exist_ok=True)
-
+os.makedirs('weights', exist_ok=True)
+os.makedirs('images', exist_ok=True)
+os.makedirs('results', exist_ok=True)
+os.makedirs('tensorboard_log', exist_ok=True)
 
 PALLETE = np.array([[255, 255, 255], [244, 35, 232], [70, 70, 70], [102, 102, 156],
                     [190, 153, 153], [153, 153, 153], [250, 170, 30], [220, 220, 0],
@@ -51,7 +50,7 @@ class Config:
         elif self.dataset == 'cityscapes':
             self.aug = cityscapes_val_aug
         elif self.dataset == 'buildings':
-            self.aug = None
+            self.aug = building_val_aug
 
     def show_config(self):
         print('\n' + '-' * 30 + f'{self.mode} cfg' + '-' * 30)

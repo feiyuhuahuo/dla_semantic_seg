@@ -25,8 +25,8 @@ class AverageMeter(object):
         return sum(self.time_list) / len(self.time_list)
 
 
-def adjust_lr_iter(cfg, optimizer, cur_iter, epoch_size):
-    lr = cfg.lr * (1 - cur_iter / (cfg.epoch_num * epoch_size)) ** 0.9
+def adjust_lr_iter(cfg, optimizer, cur_iter):
+    lr = cfg.lr * (1 - cur_iter / cfg.iter) ** 0.9
 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
