@@ -2,6 +2,7 @@ import cv2
 import glob
 import torch.utils.data as data
 
+
 class Seg_dataset(data.Dataset):
     def __init__(self, cfg):
         self.aug = cfg.aug

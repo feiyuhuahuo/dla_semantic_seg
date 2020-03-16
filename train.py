@@ -15,8 +15,8 @@ from utils.radam import RAdam
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='buildings', help='The dataset for training.')
-parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
-parser.add_argument('--epoch_num', type=int, default=10000, help='Number of epochs to train.')
+parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
+parser.add_argument('--epoch_num', type=int, default=50, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
@@ -34,7 +34,7 @@ cfg.show_config()
 torch.backends.cudnn.benchmark = True
 
 train_dataset = Seg_dataset(cfg)
-train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=0,
+train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True, num_workers=8,
                                pin_memory=True, drop_last=False)
 
 model = DLASeg(cfg).cuda()
@@ -57,6 +57,7 @@ elif cfg.optim == 'radam':
 iter_time = 0
 batch_time = AverageMeter(length=100)
 epoch_size = int(len(train_dataset) / cfg.bs)
+
 writer = SummaryWriter(f'tensorboard_log/{cfg.dataset}_{cfg.model}_{cfg.lr}')
 
 for epoch in range(resume_epoch, cfg.epoch_num):
@@ -89,7 +90,8 @@ for epoch in range(resume_epoch, cfg.epoch_num):
             batch_time.add(iter_time)
         temp = backward_end
 
-        if i > 0:
+        # if i > 0:
+        if i > 0  and i % 10 == 0:
             t_data = iter_time - (backward_end - forward_start)
             t_forward = forward_end - forward_start
             t_backward = backward_end - forward_end
