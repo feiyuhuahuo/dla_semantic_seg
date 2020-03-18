@@ -62,11 +62,11 @@ writer = SummaryWriter(f'tensorboard_log/{cfg.dataset}_{cfg.model}_{cfg.lr}')
 i = 0
 training = True
 while training:
-    for data_tuple, _ in train_loader:
+    for img, label in train_loader:
         lr = adjust_lr_iter(cfg, optimizer, i)
 
-        img = data_tuple[0].cuda().detach()
-        target = data_tuple[1].cuda().detach()
+        img = img.cuda().detach()
+        target = label.cuda().detach()
 
         torch.cuda.synchronize()
         forward_start = time.time()

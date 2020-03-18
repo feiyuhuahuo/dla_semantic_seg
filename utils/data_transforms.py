@@ -113,7 +113,10 @@ def to_tensor(img, label=None):
     img = torch.tensor(img, dtype=torch.float32)
     if label is not None:
         label = torch.tensor(label, dtype=torch.int64)  # Label must be int64 because of nn.NLLLoss.
-    return img, label
+        return img, label
+
+    return img
+
 
 
 def SpecifiedResize(img, label):  # Keeping ratio resize with a specified length along the image long side.
@@ -133,7 +136,7 @@ def SpecifiedResize(img, label):  # Keeping ratio resize with a specified length
     return img, label
 
 
-def nearest_resize(img, label=None):  # Keeping ratio resize to the nearest size with respect to the image size.
+def nearest_resize(img, label=None):  # Keeping ratio resize to the nearest multiple of 32 according to the image size.
     if label is not None:
         assert img.shape[0:2] == label.shape[0:2], 'shape mismatch in data_transforms.nearest_resize'
 
@@ -212,7 +215,6 @@ def random_blur(img):
 
 
 def color_space(img, current, to):
-    # img = img.astype('float32')
     if current == 'BGR' and to == 'HSV':
         img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     elif current == 'HSV' and to == 'BGR':
@@ -377,3 +379,12 @@ def building_val_aug(img, label):
     img, label = to_tensor(img, label)
 
     return img, label
+
+
+def building_detect_aug(img):
+    img = nearest_resize(img)
+    original_img = img.copy()
+    norm_img = normalize(img)
+    norm_img = to_tensor(norm_img)
+
+    return norm_img, original_img

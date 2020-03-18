@@ -1,17 +1,19 @@
 #!/usr/bin/env python 
 # -*- coding:utf-8 -*-
+
+
 import cv2
-import glob
-import shutil
 
-imgs = glob.glob(f'/home/feiyu/Data/building_semantic/original_imgs/Train/*.tif')
-# labels = glob.glob(f'/home/feiyu/Data/building_semantic/label_imgs/Train/*.tif')
+img1 = cv2.imread('60.jpg')
+img1 = cv2.resize(img1, (480, 500))  # 统一图片大小
+img2 = cv2.imread('70.jpg')
+img2 = cv2.resize(img2, (480, 500))  # 统一图片大小
 
-for aa in imgs:
-    bb = aa.replace('original_imgs', 'label_imgs')
-    ii = cv2.imread(aa)
-    ll = cv2.imread(aa.replace('original_imgs', 'label_imgs'))
-    print(ii.shape, ll.shape)
+aa = cv2.addWeighted(img1, 0.8, img2, 0.7, 0)
+# dst = cv2.addWeighted(img1, 0.5, img2, 0.5, 100)
+
+cv2.imshow('dst', aa)
+# cv2.imshow('img1', dst)
 
 
-
+cv2.waitKey()
