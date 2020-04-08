@@ -102,8 +102,9 @@ def PadIfNeeded(img, label):
 
 
 def normalize(img):
-    for i in range(3):  # This for-loop does not influence speed.
-        img[:, :, i] = (img[:, :, i] - np.mean(img[:, :, i])) / np.std(img[:, :, i])
+    # for i in range(3):
+    #     img[:, :, i] = (img[:, :, i] - np.mean(img[:, :, i])) / np.std(img[:, :, i])
+    img = (img - 128.) / 128.
 
     return img
 
@@ -116,7 +117,6 @@ def to_tensor(img, label=None):
         return img, label
 
     return img
-
 
 
 def SpecifiedResize(img, label):  # Keeping ratio resize with a specified length along the image long side.

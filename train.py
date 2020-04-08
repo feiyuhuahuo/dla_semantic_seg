@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description='Training script for DLA Semantic S
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='buildings', help='The dataset for training.')
 parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
-parser.add_argument('--iter', type=int, default=50000, help='Number of epochs to train.')
+parser.add_argument('--iter', type=int, default=30000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
