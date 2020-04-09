@@ -269,7 +269,7 @@ class DLA(nn.Module):
         # state_dict.pop('level5.root.conv.weight')
         # state_dict.pop('level5.project.0.weight')
         self.load_state_dict(state_dict, strict=False)
-        print(f'{weights} loaded.')
+        print(f'{weights} loaded.\n')
 
 
 def dla34(**kwargs):  # DLA-34

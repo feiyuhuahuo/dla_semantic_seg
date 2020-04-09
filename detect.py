@@ -4,6 +4,9 @@ import torch
 import argparse
 from utils.dataset import Seg_dataset
 import cv2
+import time
+from utils import timer
+from utils.utils import AverageMeter
 from utils.config import Config, PALLETE
 from models.dla_up import DLASeg
 
@@ -28,22 +31,39 @@ model = DLASeg(cfg).cuda()
 model.load_state_dict(torch.load(cfg.trained_model), strict=True)
 model.eval()
 
+timer.set_len(length=100)
+batch_time = AverageMeter(length=100)
 with torch.no_grad():
     for i, (data_tuple, img_name) in enumerate(test_dataset):
+        if i > 0:
+            timer.start()  # timer does not timing for the first image.
+
         image = data_tuple[0].unsqueeze(0).cuda().detach()
-        output = model(image)
-        pred = torch.max(output, 1)[1].squeeze(0).cpu().numpy()
 
-        if cfg.colorful:
-            pred = PALLETE[pred].astype('uint8')
-            cv2.imwrite(f'results/{img_name}', pred)
-        if cfg.overlay:
-            pred = PALLETE[pred].astype('uint8')
-            original_img = data_tuple[1].astype('uint8')
-            fused = cv2.addWeighted(pred, 0.2, original_img, 0.8, gamma=0)
-            cv2.imwrite(f'results/{img_name}', fused)
-        else:
-            pred *= int(255 / cfg.class_num)
-            cv2.imwrite(f'results/{img_name}', pred)
+        with timer.counter('forward'):
+            output = model(image)
 
-        print(f'\r{i+1}/{len(test_dataset)}', end='')
+        with timer.counter('save result'):
+            pred = torch.max(output, 1)[1].squeeze(0).cpu().numpy()
+
+            if cfg.colorful:
+                pred = PALLETE[pred].astype('uint8')
+                cv2.imwrite(f'results/{img_name}', pred)
+            if cfg.overlay:
+                pred = PALLETE[pred].astype('uint8')
+                original_img = data_tuple[1].astype('uint8')
+                fused = cv2.addWeighted(pred, 0.2, original_img, 0.8, gamma=0)
+                cv2.imwrite(f'results/{img_name}', fused)
+            else:
+                pred *= int(255 / cfg.class_num)
+                cv2.imwrite(f'results/{img_name}', pred)
+
+        aa = time.perf_counter()
+        if i > 0:
+            iter_time = aa - temp  # iter_time is the total time of one iteration.
+            timer.add_batch_time(iter_time)  # data time can't be counted by timer because it's in the for loop.
+            fps = timer.get_fps()
+            print(f'\r{i + 1}/{len(test_dataset)}, fps: {fps:.2f}', end='')
+        temp = aa
+print()
+timer.print_timer()

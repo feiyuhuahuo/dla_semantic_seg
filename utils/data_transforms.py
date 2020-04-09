@@ -360,7 +360,7 @@ def building_train_aug(img, label):
     img = color_distortion(img)
     img, label = random_flip(img, label, v_flip=True)
     img, label = random_rotate(img, label, ninty_rotation=True)
-    img, label = direct_resize(img, label, 704)
+    img, label = direct_resize(img, label, 128)
     # img = img.astype('uint8')
     # label = label.astype('uint8') * 100
     # cv2.imshow('aa', img)

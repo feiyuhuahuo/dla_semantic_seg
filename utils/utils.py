@@ -3,9 +3,7 @@
 import numpy as np
 
 
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-
+class AverageMeter:
     def __init__(self, length):
         self.time_list = []
         self.length = length

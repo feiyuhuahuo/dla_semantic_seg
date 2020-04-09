@@ -13,7 +13,6 @@ parser = argparse.ArgumentParser(description='Validation script for DLA Semantic
 parser.add_argument('--trained_model', default='', type=str, help='path to the trained model')
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='buildings', help='The dataset for validation.')
-parser.add_argument('--bs', type=int, default=8, help='The training batch size.')
 parser.add_argument('--use_dcn', default=False, action='store_true', help='Whether to use DCN.')
 parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
                     help='The downsampling ratio of the IDA network output, '
@@ -24,7 +23,7 @@ def validate(model, cfg):
     torch.backends.cudnn.benchmark = True
 
     val_dataset = Seg_dataset(cfg)
-    val_loader = data.DataLoader(val_dataset, batch_size=cfg.bs, shuffle=False, num_workers=8, pin_memory=True)
+    val_loader = data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
     total_batch = int(len(val_dataset)) + 1
     hist = np.zeros((cfg.class_num, cfg.class_num))
