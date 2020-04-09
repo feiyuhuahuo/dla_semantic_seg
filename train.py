@@ -96,7 +96,7 @@ while training:
             t_backward = backward_end - forward_end
             time_remain = (cfg.iter - i) * batch_time.get_avg()
             eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
-            print(f'{i:3d} | loss: {loss:.3f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
+            print(f'{i:3d} | loss: {loss:.4f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
                   f't_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr:.5f} | ETA: {eta}')
 
         if i > 0 and i % 100 == 0:

@@ -152,7 +152,7 @@ def nearest_resize(img, label=None):  # Keeping ratio resize to the nearest mult
 
 
 def building_crop(img, label):
-    crop_ratio = random.uniform(0.8, 1.0)
+    crop_ratio = random.uniform(0.9, 1.0)
     h, w, _ = img.shape
     crop_h, crop_w = int(h * crop_ratio), int(w * crop_ratio)
     left = random.randint(0, w - crop_w)
@@ -171,11 +171,12 @@ def pad_to_square(img, label):
     pad_img = pad_img.astype('float32')
     pad_label = np.ones((long_size, long_size), dtype='float32') * 255
 
+    if h == w:
+        return img, label
     if h < w:
         up = random.randint(0, w - h)
         pad_img[up: up + h, :, :] = img
         pad_label[up: up + h, :] = label
-
     if h > w:
         left = random.randint(0, h - w)
         pad_img[:, left: left + w, :] = img
