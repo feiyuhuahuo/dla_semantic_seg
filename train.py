@@ -9,11 +9,12 @@ from torch import nn
 from utils.dataset import Seg_dataset
 from utils.utils import *
 from models.dla_up import DLASeg
+from models.unet import UNet
 from utils.config import Config
 from utils.radam import RAdam
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
-parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
+parser.add_argument('--model', type=str, default='unet', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='buildings', help='The dataset for training.')
 parser.add_argument('--bs', type=int, default=16, help='The training batch size.')
 parser.add_argument('--iter', type=int, default=30000, help='Number of epochs to train.')
@@ -37,7 +38,11 @@ train_dataset = Seg_dataset(cfg)
 train_loader = data.DataLoader(train_dataset, batch_size=cfg.bs, shuffle=True,
                                num_workers=8, pin_memory=True, drop_last=False)
 
-model = DLASeg(cfg).cuda()
+if cfg.model == 'unet':
+    model = UNet(input_channels=3).cuda()
+    model.apply(model.weights_init_normal)
+else:
+    model = DLASeg(cfg).cuda()
 model.train()
 
 if cfg.resume:
