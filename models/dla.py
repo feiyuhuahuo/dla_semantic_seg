@@ -205,7 +205,7 @@ class DLA(nn.Module):
         super().__init__()
         self.channels = channels
         self.num_classes = num_classes
-        self.base_layer = nn.Sequential(nn.Conv2d(3, channels[0], kernel_size=7, stride=1, padding=3, bias=False),
+        self.base_layer = nn.Sequential(nn.Conv2d(3, channels[0], kernel_size=7, padding=3, bias=False),
                                         nn.BatchNorm2d(channels[0]),
                                         nn.ReLU(inplace=True))
 

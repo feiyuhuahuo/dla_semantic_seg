@@ -20,9 +20,6 @@ parser.add_argument('--bs', type=int, default=16, help='The training batch size.
 parser.add_argument('--iter', type=int, default=30000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
 parser.add_argument('--resume', type=str, default=None, help='The path of the latest checkpoint.')
-parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
-                    help='The downsampling ratio of the IDA network output, '
-                         'which is then upsampled to the original resolution.')
 parser.add_argument('--lr_mode', type=str, default='poly', help='The learning rate decay strategy.')
 parser.add_argument('--use_dcn', default=False, action='store_true', help='Whether to use DCN.')
 parser.add_argument('--val_interval', type=int, default=500, help='The validation interval during training.')

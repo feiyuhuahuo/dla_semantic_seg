@@ -124,16 +124,14 @@ class DLAUp(nn.Module):
 class DLASeg(nn.Module):
     def __init__(self, cfg):
         super().__init__()
-        assert cfg.down_ratio in [2, 4, 8, 16]
-
-        self.first_level = int(np.log2(cfg.down_ratio))
+        self.down_ratio = 2
+        self.first_level = int(np.log2(self.down_ratio))
         self.base = dla.__dict__[cfg.model]()
         channels = self.base.channels
         scales = [2 ** i for i in range(len(channels[self.first_level:]))]
 
         self.dla_up = DLAUp(channels[self.first_level:], scales=scales, cfg=cfg)  # [32, 64, 128, 256, 512], [1, 2, 4, 8, 16]
-        self.fc = nn.Sequential(
-            nn.Conv2d(channels[self.first_level], cfg.class_num, kernel_size=3, stride=1, padding=1))
+        self.fc = nn.Sequential(nn.Conv2d(channels[self.first_level], cfg.class_num, kernel_size=3, padding=1))
 
         up_factor = 2 ** self.first_level
         if up_factor > 1:

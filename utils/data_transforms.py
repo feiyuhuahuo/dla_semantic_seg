@@ -109,8 +109,10 @@ def normalize(img):
     return img
 
 
-def to_tensor(img, label=None):
+def to_tensor(img, label=None, onnx_mode=False):
     img = np.transpose(img[..., (2, 1, 0)], (2, 0, 1))  # To RGB, to (C, H, W).
+    if onnx_mode:
+        return img[None, :]
     img = torch.tensor(img, dtype=torch.float32)
     if label is not None:
         label = torch.tensor(label, dtype=torch.int64)  # Label must be int64 because of nn.NLLLoss.
@@ -382,10 +384,9 @@ def building_val_aug(img, label):
     return img, label
 
 
-def building_detect_aug(img):
+def building_detect_aug(img, onnx_mode=False):
     img = nearest_resize(img)
     original_img = img.copy()
     norm_img = normalize(img)
-    norm_img = to_tensor(norm_img)
-
+    norm_img = to_tensor(norm_img, onnx_mode=onnx_mode)
     return norm_img, original_img

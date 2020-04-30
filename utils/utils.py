@@ -3,29 +3,8 @@
 import numpy as np
 
 
-class AverageMeter:
-    def __init__(self, length):
-        self.time_list = []
-        self.length = length
-        self.reset()
-
-    def reset(self):
-        self.time_list = []
-
-    def add(self, time):
-        if len(self.time_list) >= self.length:
-            self.time_list.pop(0)
-
-        self.time_list.append(time)
-        assert len(self.time_list) <= self.length
-
-    def get_avg(self):
-        return sum(self.time_list) / len(self.time_list)
-
-
 def adjust_lr_iter(cfg, optimizer, cur_iter):
     lr = cfg.lr * (1 - cur_iter / cfg.iter) ** 0.9
-
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -39,7 +18,6 @@ def accuracy(output, target):  # acc = TP / (TP + FP)
     correct = pred.eq(target)
     correct = correct[target != 255].view(-1)
     score = correct.float().sum(0) / correct.size(0) * 100.0
-
     return score.item()
 
 

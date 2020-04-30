@@ -14,9 +14,7 @@ parser.add_argument('--trained_model', default='', type=str, help='path to the t
 parser.add_argument('--model', type=str, default='dla34', help='The model structure.')
 parser.add_argument('--dataset', type=str, default='buildings', help='The dataset for validation.')
 parser.add_argument('--use_dcn', default=False, action='store_true', help='Whether to use DCN.')
-parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
-                    help='The downsampling ratio of the IDA network output, '
-                         'which is then upsampled to the original resolution.')
+parser.add_argument('--onnx', default=False, action='store_true', help='Get onnx model.')
 
 
 def validate(model, cfg):
@@ -37,7 +35,7 @@ def validate(model, cfg):
 
             hist += confusion_matrix(pred.flatten(), label.flatten(), cfg.class_num)
             ious = per_class_iou(hist) * 100
-            miou = round(np.nanmean(ious), 2)
+            miou = np.nanmean(ious)
             print(f'\rBatch: {i + 1}/{total_batch}, mIOU: {miou:.2f}', end='')
 
     print('\nPer class iou:')
@@ -55,4 +53,17 @@ if __name__ == '__main__':
     model = DLASeg(cfg).cuda()
     model.load_state_dict(torch.load(cfg.trained_model), strict=True)
     model.eval()
+    if cfg.onnx:
+        net_in = torch.randn(4, 3, 128, 128, requires_grad=True).cuda()
+        torch_out = torch.onnx.export(model,  # model being run
+                                      net_in,  # model input (or a tuple for multiple inputs)
+                                      "dla.onnx",
+                                      verbose=True,
+                                      # store the trained parameter weights inside the model file
+                                      training=False,
+                                      do_constant_folding=True,
+                                      input_names=['input'],
+                                      output_names=['output'])
+        exit()
+
     validate(model, cfg)

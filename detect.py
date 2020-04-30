@@ -6,7 +6,6 @@ from utils.dataset import Seg_dataset
 import cv2
 import time
 from utils import timer
-from utils.utils import AverageMeter
 from utils.config import Config, PALLETE
 from models.dla_up import DLASeg
 
@@ -17,9 +16,6 @@ parser.add_argument('--dataset', type=str, default='buildings', help='The datase
 parser.add_argument('--colorful', default=False, action='store_true', help='Whether to show the colorful result.')
 parser.add_argument('--overlay', default=False, action='store_true', help='Whether to show the overlay result.')
 parser.add_argument('--use_dcn', default=False, action='store_true', help='Whether to use DCN.')
-parser.add_argument('--down_ratio', type=int, default=2, choices=[2, 4, 8, 16],
-                    help='The downsampling ratio of the IDA network output, '
-                         'which is then upsampled to the original resolution.')
 
 args = parser.parse_args()
 cfg = Config(args=args.__dict__, mode='Detect')
@@ -32,7 +28,6 @@ model.load_state_dict(torch.load(cfg.trained_model), strict=True)
 model.eval()
 
 timer.set_len(length=100)
-batch_time = AverageMeter(length=100)
 with torch.no_grad():
     for i, (data_tuple, img_name) in enumerate(test_dataset):
         if i > 0:
