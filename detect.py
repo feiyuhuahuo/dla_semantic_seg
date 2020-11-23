@@ -27,12 +27,13 @@ model = DLASeg(cfg).cuda()
 model.load_state_dict(torch.load(cfg.trained_model), strict=True)
 model.eval()
 
-timer.set_len(length=100)
+timer.reset()
 with torch.no_grad():
     for i, (data_tuple, img_name) in enumerate(test_dataset):
-        if i > 0:
+        if i == 1:
             timer.start()  # timer does not timing for the first image.
 
+        img_name = img_name.replace('tif', 'png')
         image = data_tuple[0].unsqueeze(0).cuda().detach()
 
         with timer.counter('forward'):
@@ -53,12 +54,13 @@ with torch.no_grad():
                 pred *= int(255 / cfg.class_num)
                 cv2.imwrite(f'results/{img_name}', pred)
 
-        aa = time.perf_counter()
+        time_this = time.time()
         if i > 0:
-            iter_time = aa - temp  # iter_time is the total time of one iteration.
-            timer.add_batch_time(iter_time)  # data time can't be counted by timer because it's in the for loop.
-            fps = timer.get_fps()
+            batch_time = time_this - time_last
+            timer.add_batch_time(batch_time)
+            t_f = timer.get_times(['forward'])
+            fps = 1 / t_f[0]
             print(f'\r{i + 1}/{len(test_dataset)}, fps: {fps:.2f}', end='')
-        temp = aa
+        time_last = time_this
+
 print()
-timer.print_timer()

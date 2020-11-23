@@ -12,6 +12,7 @@ from models.dla_up import DLASeg
 from models.unet import UNet
 from utils.config import Config
 from utils.radam import RAdam
+from utils import timer
 
 parser = argparse.ArgumentParser(description='Training script for DLA Semantic Segmentation.')
 parser.add_argument('--model', type=str, default='unet', help='The model structure.')
@@ -57,49 +58,49 @@ elif cfg.optim == 'radam':
     optimizer = RAdam(model.optim_parameters(), lr=cfg.lr, weight_decay=cfg.decay)
 
 iter_time = 0
-batch_time = AverageMeter(length=100)
-
+timer.reset()
 writer = SummaryWriter(f'tensorboard_log/{cfg.dataset}_{cfg.model}_{cfg.lr}')
 
 i = 0
 training = True
 while training:
     for img, label in train_loader:
+        if i == 1:
+            timer.start()
+
         lr = adjust_lr_iter(cfg, optimizer, i)
 
         img = img.cuda().detach()
         target = label.cuda().detach()
 
-        torch.cuda.synchronize()
-        forward_start = time.time()
+        with timer.counter('forward'):
+            output = model(img)
 
-        output = model(img)
+        with timer.counter('loss'):
+            loss = criterion(output, target)
 
-        torch.cuda.synchronize()
-        forward_end = time.time()
+        with timer.counter('backward'):
+            optimizer.zero_grad()
+            loss.backward()
 
-        loss = criterion(output, target)
+        with timer.counter('update'):
+            optimizer.step()
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        torch.cuda.synchronize()
-        backward_end = time.time()
-
+        time_this = time.time()
         if i > 0:
-            iter_time = backward_end - temp
-            batch_time.add(iter_time)
-        temp = backward_end
+            batch_time = time_this - time_last
+            timer.add_batch_time(batch_time)
+        time_last = time_this
 
         if i > 0 and i % 10 == 0:
-            t_data = iter_time - (backward_end - forward_start)
-            t_forward = forward_end - forward_start
-            t_backward = backward_end - forward_end
-            time_remain = (cfg.iter - i) * batch_time.get_avg()
-            eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
-            print(f'{i:3d} | loss: {loss:.4f} | t_data: {t_data:.3f} | t_forward: {t_forward:.3f} | '
-                  f't_backward: {t_backward:.3f} | t_batch: {iter_time:.3f} | lr: {lr:.5f} | ETA: {eta}')
+            time_name = ['batch', 'data', 'forward', 'loss', 'backward', 'update']
+            t_t, t_d, t_f, t_l, t_b, t_u = timer.get_times(time_name)
+
+            seconds = (cfg.iter - i) * t_t
+            eta = str(datetime.timedelta(seconds=seconds)).split('.')[0]
+
+            print(f'{i:3d} | loss: {loss:.4f} | t_total: {t_t:.3f} | t_data: {t_d:.3f} | t_forward: {t_f:.3f} | '
+                  f't_loss: {t_l:.3f} | t_backward: {t_b:.3f} | t_update: {t_u:.3f} | lr: {lr:.5f} | ETA: {eta}')
 
         if i > 0 and i % 100 == 0:
             writer.add_scalar('loss', loss, global_step=i)
@@ -112,6 +113,7 @@ while training:
             save_name = f'{cfg.model}_{i}_{cfg.lr}.pth'
             torch.save(model.state_dict(), f'weights/{save_name}')
             print(f'Model saved as: {save_name}, begin validating.')
+            timer.reset()
 
             cfg.mode = 'Val'
             cfg.to_val_aug()
@@ -120,5 +122,6 @@ while training:
             model.train()
 
             writer.add_scalar('miou', miou, global_step=i)
+            timer.start()
 
 writer.close()

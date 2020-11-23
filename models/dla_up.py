@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 from models import dla
-from DCNv2.dcn_v2 import DCN
+from DCNv2.DCN.dcn_v2 import DCN
 
 
 class Identity(nn.Module):

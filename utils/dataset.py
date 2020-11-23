@@ -16,10 +16,8 @@ class Seg_dataset(data.Dataset):
             self.original_imgs = glob.glob(f'/home/feiyu/Data/cityscapes_semantic/original_imgs/{file}/*.png')
             self.label_imgs = glob.glob(f'/home/feiyu/Data/cityscapes_semantic/label_imgs/{file}/*.png')
         if cfg.dataset == 'buildings':
-            # self.original_imgs = glob.glob(f'/home/feiyu/Data/building_semantic/original_imgs/{file}/*.tif')
-            # self.label_imgs = glob.glob(f'/home/feiyu/Data/building_semantic/label_imgs/{file}/*.tif')
-            self.original_imgs = glob.glob(f'/home/feiyu/Data/building_small/imgs/{file}/*.jpg')
-            self.label_imgs = glob.glob(f'/home/feiyu/Data/building_small/labels/{file}/*.png')
+            self.original_imgs = glob.glob(f'/home/feiyu/Data/building_semantic/original_imgs/{file}/*.tif')
+            self.label_imgs = glob.glob(f'/home/feiyu/Data/building_semantic/label_imgs/{file}/*.tif')
 
         self.original_imgs.sort()
         self.label_imgs.sort()

@@ -4,5 +4,7 @@ __pycache__
 results
 images
 tensorboard_log
-DCNv2
 *.onnx
+DCNv2/build
+DCNv2/DCNv2.egg-info
+DCNv2/_ext*
